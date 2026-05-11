@@ -1,0 +1,14 @@
+import { Router }       from 'express';
+import { requireAuth }  from '../../middleware/auth';
+import { requireRole }  from '../../middleware/role';
+import * as Ctrl        from './sessions.controller';
+
+const router = Router();
+router.use(requireAuth);
+
+router.post('/',              requireRole('therapist'), Ctrl.create);
+router.get('/upcoming',       Ctrl.upcoming);
+router.get('/',               Ctrl.list);
+router.post('/:id/notes',     requireRole('therapist'), Ctrl.submitNotes);
+
+export default router;

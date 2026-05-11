@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/rating_slider.dart';
+import '../providers/therapist_provider.dart';
+
+void showSessionNotesSheet(BuildContext context, WidgetRef ref, String sessionId) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _SessionNotesSheet(sessionId: sessionId),
+  );
+}
+
+class _SessionNotesSheet extends ConsumerStatefulWidget {
+  final String sessionId;
+  const _SessionNotesSheet({required this.sessionId});
+
+  @override
+  ConsumerState<_SessionNotesSheet> createState() => _SessionNotesSheetState();
+}
+
+class _SessionNotesSheetState extends ConsumerState<_SessionNotesSheet> {
+  final _notesCtr         = TextEditingController();
+  String _mood            = 'calm';
+  int _attentionScore     = 5;
+  int _communicationScore = 5;
+  int _motorScore         = 5;
+  int _behaviorScore      = 5;
+
+  static const _moods = ['sad', 'calm', 'happy', 'excited'];
+  static const _moodEmojis = {'sad': '😢', 'calm': '😐', 'happy': '🙂', 'excited': '😄'};
+
+  @override
+  void dispose() {
+    _notesCtr.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    await ref.read(sessionNotesProvider.notifier).submit(widget.sessionId, {
+      'mood':                _mood,
+      'attention_score':     _attentionScore,
+      'communication_score': _communicationScore,
+      'motor_score':         _motorScore,
+      'behavior_score':      _behaviorScore,
+      if (_notesCtr.text.trim().isNotEmpty) 'notes': _notesCtr.text.trim(),
+    });
+    if (mounted && ref.read(sessionNotesProvider).success) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notes saved successfully')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(sessionNotesProvider);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize:     0.5,
+      maxChildSize:     0.95,
+      builder: (_, ctrl) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: ctrl,
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text('Session Notes',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 20),
+
+                  // Mood picker
+                  Text('Child Mood',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _moods.map((m) => GestureDetector(
+                      onTap: () => setState(() => _mood = m),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _mood == m
+                              ? AppColors.primaryBlue.withValues(alpha: 0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(children: [
+                          Text(_moodEmojis[m]!, style: TextStyle(fontSize: _mood == m ? 30 : 22)),
+                          const SizedBox(height: 4),
+                          Text(m, style: Theme.of(context).textTheme.bodySmall),
+                        ]),
+                      ),
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Score sliders
+                  RatingSlider(
+                    label:     'Attention (1–10)',
+                    value:     _attentionScore,
+                    onChanged: (v) => setState(() => _attentionScore = v),
+                  ),
+                  const SizedBox(height: 12),
+                  RatingSlider(
+                    label:     'Communication (1–10)',
+                    value:     _communicationScore,
+                    onChanged: (v) => setState(() => _communicationScore = v),
+                  ),
+                  const SizedBox(height: 12),
+                  RatingSlider(
+                    label:     'Motor Skills (1–10)',
+                    value:     _motorScore,
+                    onChanged: (v) => setState(() => _motorScore = v),
+                  ),
+                  const SizedBox(height: 12),
+                  RatingSlider(
+                    label:     'Behavior (1–10)',
+                    value:     _behaviorScore,
+                    onChanged: (v) => setState(() => _behaviorScore = v),
+                  ),
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller:  _notesCtr,
+                    maxLines:    4,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (optional)',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  if (state.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(state.error!,
+                          style: const TextStyle(color: AppColors.softCoral)),
+                    ),
+                  AppButton(
+                    label:     'Save Notes',
+                    onPressed: _submit,
+                    loading:   state.loading,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,43 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Screenshots / docs assets
+*.png
+*.jpg
+*.jpeg
+
+# Credentials — never commit
+credentials
+
+# ── Backend ──────────────────────────────────────────────────────────────────
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/.env.*
+backend/uploads/
+backend/*.log
+
+# ── Flutter ───────────────────────────────────────────────────────────────────
+naivisense/.dart_tool/
+naivisense/.flutter-plugins
+naivisense/.flutter-plugins-dependencies
+naivisense/.packages
+naivisense/build/
+naivisense/android/.gradle/
+naivisense/android/local.properties
+naivisense/android/key.properties
+naivisense/ios/.symlinks/
+naivisense/ios/Pods/
+naivisense/ios/Flutter/Flutter.framework
+naivisense/ios/Flutter/Flutter.podspec
+naivisense/web/
+naivisense/linux/
+naivisense/macos/
+naivisense/windows/
+naivisense/pubspec.lock
+
+# Root package files (not needed)
+package-lock.json
+node_modules/
