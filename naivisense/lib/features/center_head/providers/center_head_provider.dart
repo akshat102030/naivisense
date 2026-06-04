@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/alert.dart';
 import '../../../data/models/child.dart';
+import '../../../data/models/diet_plan.dart';
 import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/alerts_repository.dart';
 import '../../../data/repositories/children_repository.dart';
+import '../../../data/repositories/diet_plans_repository.dart';
 import '../../../data/repositories/home_plans_repository.dart';
 import '../../../data/repositories/sessions_repository.dart';
 import '../../../data/services/api_service.dart';
@@ -25,6 +27,12 @@ final adminChildPlanProvider =
     FutureProvider.family<HomePlanModel?, String>(
   (ref, childId) =>
       ref.read(homePlansRepositoryProvider).getActivePlan(childId),
+);
+
+final adminChildDietPlanProvider =
+    FutureProvider.family<DietPlanModel?, String>(
+  (ref, childId) =>
+      ref.read(dietPlansRepositoryProvider).getActivePlan(childId),
 );
 
 final adminChildAlertsProvider =

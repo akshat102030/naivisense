@@ -8,10 +8,10 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/stat_tile.dart';
 import '../../../shared/widgets/state_widgets.dart' as sw;
-import 'package:go_router/go_router.dart';
 import '../providers/therapist_provider.dart';
 import 'session_notes_screen.dart';
 import 'create_session_screen.dart';
+import 'therapist_child_profile_screen.dart';
 
 class TherapistHomeScreen extends ConsumerWidget {
   const TherapistHomeScreen({super.key});
@@ -275,6 +275,12 @@ class _ChildTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TherapistChildProfileScreen(child: child),
+        ),
+      ),
       child: Row(
         children: [
           CircleAvatar(

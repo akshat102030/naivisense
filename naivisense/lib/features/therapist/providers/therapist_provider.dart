@@ -1,12 +1,34 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/child.dart';
+import '../../../data/models/diet_plan.dart';
+import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
 import '../../../data/repositories/children_repository.dart';
+import '../../../data/repositories/diet_plans_repository.dart';
+import '../../../data/repositories/home_plans_repository.dart';
 import '../../../data/repositories/sessions_repository.dart';
 import '../../../data/repositories/verification_repository.dart';
 
 final therapistChildrenProvider = FutureProvider<List<ChildModel>>((ref) =>
     ref.read(childrenRepositoryProvider).getChildren());
+
+final therapistChildSessionsProvider =
+    FutureProvider.family<List<SessionModel>, String>(
+  (ref, childId) =>
+      ref.read(sessionsRepositoryProvider).getSessions(childId: childId),
+);
+
+final therapistChildPlanProvider =
+    FutureProvider.family<HomePlanModel?, String>(
+  (ref, childId) =>
+      ref.read(homePlansRepositoryProvider).getActivePlan(childId),
+);
+
+final therapistChildDietPlanProvider =
+    FutureProvider.family<DietPlanModel?, String>(
+  (ref, childId) =>
+      ref.read(dietPlansRepositoryProvider).getActivePlan(childId),
+);
 
 // Therapist home uses /sessions/upcoming (no childId required)
 final therapistSessionsProvider = FutureProvider<List<SessionModel>>((ref) =>

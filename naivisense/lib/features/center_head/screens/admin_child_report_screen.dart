@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../data/models/alert.dart';
 import '../../../data/models/child.dart';
+import '../../../data/models/diet_plan.dart';
 import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
 import '../../../shared/widgets/trend_chart.dart';
@@ -17,6 +18,7 @@ class AdminChildReportScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(adminChildSessionsProvider(child.id));
     final plan     = ref.watch(adminChildPlanProvider(child.id));
+    final dietPlan = ref.watch(adminChildDietPlanProvider(child.id));
     final alerts   = ref.watch(adminChildAlertsProvider(child.id));
 
     return Scaffold(
@@ -25,6 +27,7 @@ class AdminChildReportScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(adminChildSessionsProvider(child.id));
           ref.invalidate(adminChildPlanProvider(child.id));
+          ref.invalidate(adminChildDietPlanProvider(child.id));
           ref.invalidate(adminChildAlertsProvider(child.id));
         },
         child: CustomScrollView(
@@ -44,6 +47,8 @@ class AdminChildReportScreen extends ConsumerWidget {
                   _buildProgressCharts(context, sessions),
                   const SizedBox(height: 24),
                   _buildActivePlan(context, plan),
+                  const SizedBox(height: 24),
+                  _buildDietPlan(context, dietPlan),
                   const SizedBox(height: 24),
                   _buildSessionHistory(context, sessions),
                   const SizedBox(height: 24),
@@ -429,6 +434,58 @@ class AdminChildReportScreen extends ConsumerWidget {
                   _TaskGroup(title: 'Evening', tasks: p.eveningTasks),
                 ],
               ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ── Diet Chart ─────────────────────────────────────────────────────────────
+  Widget _buildDietPlan(
+      BuildContext context, AsyncValue<DietPlanModel?> plan) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(context, 'Diet Chart', Icons.restaurant_outlined),
+        const SizedBox(height: 12),
+        plan.when(
+          loading: () => const _LoadingCard(),
+          error:   (e, _) => _emptyCard('Could not load diet plan'),
+          data: (p) {
+            if (p == null) return _emptyCard('No active diet plan');
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('${AppDateUtils.formatDate(p.startDate)} → ${AppDateUtils.formatDate(p.endDate)}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      const Spacer(),
+                      Text('${p.meals.length} meals', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...p.meals.take(6).map((m) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text('${m.mealTime.toUpperCase()}: ${m.name}', style: const TextStyle(fontSize: 13))),
+                            Text('${m.caloriesApprox} kcal', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      )),
+                  if (p.meals.length > 6)
+                    Text('+ ${p.meals.length - 6} more', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                ],
+              ),
             );
           },
         ),

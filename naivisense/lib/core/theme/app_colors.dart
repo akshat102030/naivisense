@@ -10,6 +10,7 @@ class AppColors {
 
   static const Color background    = Color(0xFFF8FAFC);
   static const Color surface       = Color(0xFFFFFFFF);
+  static const Color card          = Color(0xFFF4F6F9);
   static const Color textPrimary   = Color(0xFF1F2937);
   static const Color textSecondary = Color(0xFF6B7280);
   static const Color divider       = Color(0xFFE5E7EB);

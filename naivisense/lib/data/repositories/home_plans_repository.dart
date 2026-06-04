@@ -18,7 +18,7 @@ class HomePlansRepository {
       return HomePlanModel.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
       final ex = ErrorHandlerService.handle(e);
-      if (ex.code == 'NOT_FOUND') return null;
+      if (ex.code == 'NOT_FOUND' || ex.code == 'FORBIDDEN') return null;
       throw ex;
     }
   }

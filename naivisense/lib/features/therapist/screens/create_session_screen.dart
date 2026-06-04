@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../data/models/child.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../providers/therapist_provider.dart';
 
 class CreateSessionScreen extends ConsumerStatefulWidget {
-  const CreateSessionScreen({super.key});
+  final ChildModel? preselectedChild;
+  const CreateSessionScreen({super.key, this.preselectedChild});
 
   @override
   ConsumerState<CreateSessionScreen> createState() =>
@@ -22,6 +24,12 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
   int _durationMin    = 45;
   DateTime _date      = DateTime.now().add(const Duration(hours: 1));
   TimeOfDay _time     = TimeOfDay.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _childId = widget.preselectedChild?.id;
+  }
 
   static const _sessionTypes = [
     {'key': 'speech',      'label': 'Speech Therapy',        'icon': Icons.record_voice_over_outlined},

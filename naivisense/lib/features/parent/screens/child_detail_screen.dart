@@ -5,11 +5,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../data/models/alert.dart';
 import '../../../data/models/child.dart';
+import '../../../data/models/diet_plan.dart';
 import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../providers/parent_provider.dart';
+import '../../../features/reports/screens/weekly_report_screen.dart';
 
 class ChildDetailScreen extends ConsumerWidget {
   final ChildModel child;
@@ -19,6 +21,7 @@ class ChildDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(parentSessionsProvider(child.id));
     final plan     = ref.watch(parentActivePlanProvider(child.id));
+    final dietPlan = ref.watch(parentDietPlanProvider(child.id));
     final alerts   = ref.watch(parentAlertsProvider(child.id));
 
     return Scaffold(
@@ -27,6 +30,7 @@ class ChildDetailScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(parentSessionsProvider(child.id));
           ref.invalidate(parentActivePlanProvider(child.id));
+          ref.invalidate(parentDietPlanProvider(child.id));
           ref.invalidate(parentAlertsProvider(child.id));
         },
         child: CustomScrollView(
@@ -43,6 +47,8 @@ class ChildDetailScreen extends ConsumerWidget {
                   _buildNextSession(context, sessions),
                   const SizedBox(height: 20),
                   _buildHomePlan(context, ref, plan),
+                  const SizedBox(height: 20),
+                  _buildDietPlan(context, dietPlan),
                   const SizedBox(height: 20),
                   _buildLastSessionNotes(context, sessions),
                   const SizedBox(height: 20),
@@ -177,7 +183,7 @@ class ChildDetailScreen extends ConsumerWidget {
               _ScoreTile('Social', latest.notes!.behaviorScore, const Color(0xFFAB7AE0)),
             ],
           ),
-        if (latest != null)
+        if (latest != null) ...[
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
@@ -186,6 +192,26 @@ class ChildDetailScreen extends ConsumerWidget {
                   color: AppColors.textSecondary, fontSize: 12),
             ),
           ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => WeeklyReportScreen(
+                    childId:   child.id,
+                    childName: child.name,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.bar_chart_outlined, size: 14),
+              label: const Text('View Full Report'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.mintGreen,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -372,6 +398,109 @@ class ChildDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+      ],
+    );
+  }
+
+  // ── Diet chart ────────────────────────────────────────────────────────────
+  Widget _buildDietPlan(
+      BuildContext context, AsyncValue<DietPlanModel?> dietPlan) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader("Diet Chart", Icons.restaurant_outlined),
+        const SizedBox(height: 12),
+        dietPlan.when(
+          loading: () => const LinearProgressIndicator(),
+          error:   (_, __) => const _EmptyHint(message: 'No active diet plan'),
+          data: (p) {
+            if (p == null) {
+              return const _EmptyHint(message: 'No diet plan assigned yet');
+            }
+            return Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.mintGreen.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppColors.mintGreen.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.date_range_outlined,
+                          color: AppColors.mintGreen, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${AppDateUtils.formatDate(p.startDate)} → ${AppDateUtils.formatDate(p.endDate)}',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.mintGreen),
+                      ),
+                      const Spacer(),
+                      Text('${p.meals.length} meals',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...p.meals.map((m) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.mintGreen.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(m.mealTime.toUpperCase(),
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.mintGreen)),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(m.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13)),
+                                if (m.ingredients.isNotEmpty)
+                                  Text(m.ingredients.take(3).join(', '),
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          ),
+                          Text('${m.caloriesApprox} kcal',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    )),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
