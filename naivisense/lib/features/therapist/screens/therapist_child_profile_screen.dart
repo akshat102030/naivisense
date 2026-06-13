@@ -8,6 +8,9 @@ import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
 import '../../../shared/widgets/trend_chart.dart';
 import '../../../features/reports/screens/weekly_report_screen.dart';
+import '../../../features/assessments/providers/assessment_provider.dart';
+import '../../../features/assessments/screens/assessment_wizard_screen.dart';
+import '../../../features/assessments/screens/assessment_result_screen.dart';
 import '../providers/therapist_provider.dart';
 import 'create_session_screen.dart';
 import 'session_notes_screen.dart';
@@ -18,9 +21,10 @@ class TherapistChildProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(therapistChildSessionsProvider(child.id));
-    final plan     = ref.watch(therapistChildPlanProvider(child.id));
-    final dietPlan = ref.watch(therapistChildDietPlanProvider(child.id));
+    final sessions    = ref.watch(therapistChildSessionsProvider(child.id));
+    final plan        = ref.watch(therapistChildPlanProvider(child.id));
+    final dietPlan    = ref.watch(therapistChildDietPlanProvider(child.id));
+    final assessments = ref.watch(childAssessmentsProvider(child.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,6 +33,7 @@ class TherapistChildProfileScreen extends ConsumerWidget {
           ref.invalidate(therapistChildSessionsProvider(child.id));
           ref.invalidate(therapistChildPlanProvider(child.id));
           ref.invalidate(therapistChildDietPlanProvider(child.id));
+          ref.invalidate(childAssessmentsProvider(child.id));
         },
         child: CustomScrollView(
           slivers: [
@@ -42,6 +47,8 @@ class TherapistChildProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _buildQuickStats(sessions),
                   const SizedBox(height: 20),
+                  _buildAssessmentSection(context, assessments),
+                  const SizedBox(height: 16),
                   _buildAddSessionButton(context),
                   const SizedBox(height: 24),
                   _buildProgressCharts(context, sessions),
@@ -208,6 +215,83 @@ class TherapistChildProfileScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
+      ),
+    );
+  }
+
+  // ── Assessment Section ───────────────────────────────────────────────────
+
+  void _startAssessment(BuildContext context, String type) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AssessmentWizardScreen(
+          child:          child,
+          assessmentType: type,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssessmentSection(
+      BuildContext context, AsyncValue<dynamic> assessments) {
+    final list = (assessments.valueOrNull as List?) ?? [];
+
+    return _SectionCard(
+      title: 'Assessments',
+      icon:  Icons.assignment_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Start assessment buttons
+          Row(
+            children: [
+              Expanded(
+                child: _AssessmentTypeButton(
+                  label: list.isEmpty ? 'Initial Assessment' : 'Monthly Reassessment',
+                  icon:  list.isEmpty ? Icons.play_arrow : Icons.refresh,
+                  color: AppColors.primaryBlue,
+                  onTap: () => _startAssessment(
+                    context,
+                    list.isEmpty ? 'initial' : 'monthly',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AssessmentTypeButton(
+                  label: 'Quarterly Review',
+                  icon:  Icons.bar_chart_outlined,
+                  color: const Color(0xFF9B59B6),
+                  onTap: () => _startAssessment(context, 'quarterly'),
+                ),
+              ),
+            ],
+          ),
+          if (list.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Text('Assessment History',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            ...list.take(5).map((a) => _AssessmentHistoryRow(
+                  assessment: a,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AssessmentResultScreen(
+                        assessment: a,
+                        child:      child,
+                      ),
+                    ),
+                  ),
+                )),
+          ],
+        ],
       ),
     );
   }
@@ -778,6 +862,120 @@ class _Score extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 9, color: AppColors.textSecondary)),
       ],
+    );
+  }
+}
+
+// ── Assessment helpers ────────────────────────────────────────────────────
+
+class _AssessmentTypeButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _AssessmentTypeButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color:        color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border:       Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                    fontSize:   12,
+                    fontWeight: FontWeight.w600,
+                    color:      color),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AssessmentHistoryRow extends StatelessWidget {
+  final dynamic assessment;
+  final VoidCallback onTap;
+  const _AssessmentHistoryRow({required this.assessment, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final score     = (assessment.overallScorePct as double?) ?? 0.0;
+    final risk      = assessment.riskLevel as String? ?? 'amber';
+    final type      = assessment.type as String? ?? '';
+    final date      = assessment.date as DateTime? ?? DateTime.now();
+
+    final riskColor = switch (risk) {
+      'green' => AppColors.mintGreen,
+      'red'   => AppColors.softCoral,
+      _       => AppColors.warmYellow,
+    };
+
+    final typeLabel = switch (type) {
+      'initial'   => 'Initial',
+      'monthly'   => 'Monthly',
+      'quarterly' => 'Quarterly',
+      _           => type,
+    };
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 8, height: 8,
+              decoration: BoxDecoration(
+                  color: riskColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                typeLabel,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+            Text(
+              '${score.toStringAsFixed(0)}%',
+              style: TextStyle(
+                  fontSize:   13,
+                  fontWeight: FontWeight.w700,
+                  color:      riskColor),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${date.day}/${date.month}/${date.year}',
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.textSecondary),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right,
+                size: 16, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
     );
   }
 }

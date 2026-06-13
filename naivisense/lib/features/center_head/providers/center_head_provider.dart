@@ -4,6 +4,7 @@ import '../../../data/models/child.dart';
 import '../../../data/models/diet_plan.dart';
 import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
+import '../../../data/models/therapist_overview.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/alerts_repository.dart';
 import '../../../data/repositories/children_repository.dart';
@@ -15,6 +16,21 @@ import '../../../data/services/error_handler_service.dart';
 
 final centerChildrenProvider = FutureProvider<List<ChildModel>>(
   (ref) => ref.read(childrenRepositoryProvider).getChildren(),
+);
+
+final therapistsOverviewProvider = FutureProvider<List<TherapistOverview>>(
+  (ref) async {
+    try {
+      final api = ref.read(apiServiceProvider);
+      final res = await api.get<List<dynamic>>('/users/therapists-overview');
+      final list = res.data ?? [];
+      return list
+          .map((e) => TherapistOverview.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  },
 );
 
 final adminChildSessionsProvider =
@@ -39,6 +55,21 @@ final adminChildAlertsProvider =
     FutureProvider.family<List<AlertModel>, String>(
   (ref, childId) =>
       ref.read(alertsRepositoryProvider).getAlerts(childId),
+);
+
+final allParentsProvider = FutureProvider<List<UserModel>>(
+  (ref) async {
+    try {
+      final api = ref.read(apiServiceProvider);
+      final res = await api.get<List<dynamic>>('/users/staff', params: {'role': 'parent'});
+      final list = res.data ?? [];
+      return list
+          .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  },
 );
 
 final adminUserProvider = FutureProvider.family<UserModel, String>(

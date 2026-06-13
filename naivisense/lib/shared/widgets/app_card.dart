@@ -18,9 +18,8 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: color,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: padding ?? const EdgeInsets.all(16),
           child: child,

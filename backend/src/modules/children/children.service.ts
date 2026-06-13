@@ -6,8 +6,8 @@ import type { AuthPayload }      from '../../middleware/auth';
 
 export async function listChildren(user: AuthPayload) {
   const filter =
-    user.role === 'therapist'   ? { therapist_id: user.sub } :
-    user.role === 'parent'      ? { parent_id:    user.sub } :
+    user.role === 'therapist'   ? { 'therapists.therapist_id': user.sub } :
+    user.role === 'parent'      ? { parent_id:                 user.sub } :
     {};  // center_head sees all
 
   const query = ChildModel.find(filter).sort({ created_at: -1 });
@@ -15,8 +15,8 @@ export async function listChildren(user: AuthPayload) {
   // Populate staff names for admin so the frontend doesn't need extra lookups
   if (user.role === 'center_head') {
     query
-      .populate('therapist_id', 'name phone')
-      .populate('parent_id',    'name phone');
+      .populate('therapists.therapist_id', 'name phone')
+      .populate('parent_id',               'name phone');
   }
 
   return query.lean();
@@ -63,9 +63,10 @@ export async function getSnapshot(id: string, user: AuthPayload) {
   return snapshot;
 }
 
-function canAccess(child: { therapist_id?: unknown; parent_id: unknown }, user: AuthPayload): boolean {
+function canAccess(child: { therapists?: { therapist_id: unknown }[]; parent_id: unknown }, user: AuthPayload): boolean {
   if (user.role === 'center_head') return true;
-  if (user.role === 'therapist')   return String(child.therapist_id) === user.sub;
-  if (user.role === 'parent')      return String(child.parent_id)    === user.sub;
+  if (user.role === 'therapist')
+    return (child.therapists ?? []).some((t) => String(t.therapist_id) === user.sub);
+  if (user.role === 'parent')      return String(child.parent_id) === user.sub;
   return false;
 }

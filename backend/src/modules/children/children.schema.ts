@@ -10,7 +10,10 @@ export const CreateChildSchema = z.object({
   primary_concerns: z.array(z.string()).default([]),
   therapy_targets:  z.array(z.string()).min(1),
   parent_id:        z.string().length(24),
-  therapist_id:     z.string().length(24).optional(),
+  therapists: z.array(z.object({
+    therapist_id: z.string().length(24),
+    therapy_type: z.string().min(1),
+  })).optional().default([]),
   medical: z.object({
     birth_history:       z.enum(['normal', 'premature', 'complications']).default('normal'),
     milestones_delay:    z.boolean().default(false),

@@ -8,6 +8,9 @@ import '../../../data/models/diet_plan.dart';
 import '../../../data/models/home_plan.dart';
 import '../../../data/models/session.dart';
 import '../../../shared/widgets/trend_chart.dart';
+import '../../../features/assessments/providers/assessment_provider.dart';
+import '../../../features/assessments/screens/assessment_wizard_screen.dart';
+import '../../../features/assessments/screens/assessment_result_screen.dart';
 import '../providers/center_head_provider.dart';
 
 class AdminChildReportScreen extends ConsumerWidget {
@@ -16,10 +19,11 @@ class AdminChildReportScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(adminChildSessionsProvider(child.id));
-    final plan     = ref.watch(adminChildPlanProvider(child.id));
-    final dietPlan = ref.watch(adminChildDietPlanProvider(child.id));
-    final alerts   = ref.watch(adminChildAlertsProvider(child.id));
+    final sessions    = ref.watch(adminChildSessionsProvider(child.id));
+    final plan        = ref.watch(adminChildPlanProvider(child.id));
+    final dietPlan    = ref.watch(adminChildDietPlanProvider(child.id));
+    final alerts      = ref.watch(adminChildAlertsProvider(child.id));
+    final assessments = ref.watch(childAssessmentsProvider(child.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,6 +33,7 @@ class AdminChildReportScreen extends ConsumerWidget {
           ref.invalidate(adminChildPlanProvider(child.id));
           ref.invalidate(adminChildDietPlanProvider(child.id));
           ref.invalidate(adminChildAlertsProvider(child.id));
+          ref.invalidate(childAssessmentsProvider(child.id));
         },
         child: CustomScrollView(
           slivers: [
@@ -40,6 +45,8 @@ class AdminChildReportScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _buildDiagnosisRow(context),
                   const SizedBox(height: 20),
+                  _buildAssessmentSection(context, assessments),
+                  const SizedBox(height: 24),
                   _buildQuickStats(context, sessions, alerts),
                   const SizedBox(height: 24),
                   _buildStaffSection(context, sessions),
@@ -130,6 +137,81 @@ class AdminChildReportScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // ── Assessment Section ─────────────────────────────────────────────────────
+
+  void _openWizard(BuildContext context, String type) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AssessmentWizardScreen(
+          child:          child,
+          assessmentType: type,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssessmentSection(
+      BuildContext context, AsyncValue<dynamic> assessments) {
+    final list = (assessments.valueOrNull as List?) ?? [];
+    final isLoading = assessments.isLoading;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(context, 'Assessments', Icons.assignment_outlined),
+        const SizedBox(height: 12),
+
+        // Action buttons
+        Row(
+          children: [
+            Expanded(
+              child: _AdminAssessmentButton(
+                label: list.isEmpty ? 'Start Initial Assessment' : 'New Monthly Assessment',
+                icon:  list.isEmpty ? Icons.play_arrow_rounded : Icons.refresh_rounded,
+                color: AppColors.primaryBlue,
+                onTap: () => _openWizard(
+                    context, list.isEmpty ? 'initial' : 'monthly'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _AdminAssessmentButton(
+                label: 'Quarterly Review',
+                icon:  Icons.bar_chart_rounded,
+                color: const Color(0xFF9B59B6),
+                onTap: () => _openWizard(context, 'quarterly'),
+              ),
+            ),
+          ],
+        ),
+
+        // History
+        if (isLoading) ...[
+          const SizedBox(height: 12),
+          const _LoadingCard(),
+        ] else if (list.isEmpty) ...[
+          const SizedBox(height: 12),
+          _emptyCard('No assessments done yet. Start the initial assessment above.'),
+        ] else ...[
+          const SizedBox(height: 14),
+          ...list.take(6).map((a) => _AdminAssessmentRow(
+                assessment: a,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AssessmentResultScreen(
+                      assessment: a,
+                      child:      child,
+                    ),
+                  ),
+                ),
+              )),
+        ],
+      ],
     );
   }
 
@@ -1150,6 +1232,143 @@ class _SeverityBadge extends StatelessWidget {
       child: Text(label,
           style: TextStyle(
               fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
+// ── Assessment helpers ─────────────────────────────────────────────────────
+
+class _AdminAssessmentButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _AdminAssessmentButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color:        color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border:       Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                    fontSize:   13,
+                    fontWeight: FontWeight.w600,
+                    color:      color),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminAssessmentRow extends StatelessWidget {
+  final dynamic assessment;
+  final VoidCallback onTap;
+  const _AdminAssessmentRow({required this.assessment, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final score    = (assessment.overallScorePct as double?) ?? 0.0;
+    final risk     = assessment.riskLevel as String? ?? 'amber';
+    final type     = assessment.type as String? ?? '';
+    final date     = assessment.date as DateTime? ?? DateTime.now();
+
+    final riskColor = switch (risk) {
+      'green' => AppColors.mintGreen,
+      'red'   => AppColors.softCoral,
+      _       => AppColors.warmYellow,
+    };
+
+    final typeLabel = switch (type) {
+      'initial'   => 'Initial Assessment',
+      'monthly'   => 'Monthly Reassessment',
+      'quarterly' => 'Quarterly Review',
+      _           => type,
+    };
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin:  const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color:        AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border:       Border.all(color: AppColors.divider),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 10, height: 10,
+              decoration:
+                  BoxDecoration(color: riskColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(typeLabel,
+                      style: const TextStyle(
+                          fontSize:   13,
+                          fontWeight: FontWeight.w600)),
+                  Text(
+                    '${date.day}/${date.month}/${date.year}',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${score.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                      fontSize:   16,
+                      fontWeight: FontWeight.w800,
+                      color:      riskColor),
+                ),
+                Text(
+                  switch (risk) {
+                    'green' => 'Low Risk',
+                    'red'   => 'High Risk',
+                    _       => 'Moderate',
+                  },
+                  style: TextStyle(
+                      fontSize: 10, color: riskColor),
+                ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right,
+                size: 18, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
     );
   }
 }

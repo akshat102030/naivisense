@@ -55,9 +55,9 @@ class _EnrollmentWizardScreenState
   String _parentInv   = 'medium';
 
   // ── Step 6: Goals & Consent ───────────────────────────────────────────────
-  String? _therapistId;
-  final _therapyTargets = <String>{};
-  final _goalPriorities = <String>{};
+  final _therapyTargets      = <String>{};
+  final _therapistAssignments = <String, String?>{};  // therapy_type → therapist_id
+  final _goalPriorities      = <String>{};
   double _timeline      = 6;
   final _consentByCtr   = TextEditingController();
   bool _consentGiven    = false;
@@ -120,7 +120,10 @@ class _EnrollmentWizardScreenState
       'dob':              _dob!.toUtc().toIso8601String(),
       'gender':           _gender,
       'parent_id':        _parentId,
-      if (_therapistId != null) 'therapist_id': _therapistId,
+      'therapists': _therapistAssignments.entries
+          .where((e) => e.value != null)
+          .map((e) => {'therapist_id': e.value!, 'therapy_type': e.key})
+          .toList(),
       'diagnosis':        _diagnoses.toList(),
       'severity':         _severity,
       'primary_concerns': _concerns.toList(),
@@ -684,42 +687,88 @@ class _EnrollmentWizardScreenState
       children: [
         _sectionTitle('Goals, Targets & Consent', Icons.flag_outlined),
         const SizedBox(height: 16),
-        _label('Assign Therapist (optional)'),
-        const SizedBox(height: 8),
-        therapists.when(
-          loading: () => const LinearProgressIndicator(),
-          error: (e, _) => Text('Failed to load: $e',
-              style: const TextStyle(color: AppColors.softCoral)),
-          data: (list) => DropdownButtonFormField<String>(
-            value: _therapistId,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.psychology_outlined),
-            ),
-            hint: const Text('Select therapist'),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('— Unassigned —')),
-              ...list.map((u) => DropdownMenuItem(
-                    value: u.id,
-                    child: Text(u.name),
-                  )),
-            ],
-            onChanged: (v) => setState(() => _therapistId = v),
-          ),
-        ),
-        const SizedBox(height: 20),
         _label('Therapy Focus Areas * (select all that apply)'),
         const SizedBox(height: 8),
         _chipGroup(
           options: _therapyTargetOpts,
           selected: _therapyTargets,
           onTap: (v) => setState(() {
-            _therapyTargets.contains(v)
-                ? _therapyTargets.remove(v)
-                : _therapyTargets.add(v);
+            if (_therapyTargets.contains(v)) {
+              _therapyTargets.remove(v);
+              _therapistAssignments.remove(v);
+            } else {
+              _therapyTargets.add(v);
+            }
           }),
           validator:
               _therapyTargets.isEmpty ? 'Select at least one target' : null,
         ),
+        if (_therapyTargets.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _sectionTitle('Assign Therapists', Icons.psychology_outlined),
+          const SizedBox(height: 4),
+          const Text(
+            'Optionally assign a therapist for each focus area.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          therapists.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text('Failed to load therapists: $e',
+                style: const TextStyle(color: AppColors.softCoral)),
+            data: (list) => Column(
+              children: _therapyTargets.map((target) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Therapy type label
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          target,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Therapist dropdown
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _therapistAssignments[target],
+                          decoration: const InputDecoration(
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            isDense: true,
+                          ),
+                          hint: const Text('Unassigned',
+                              style: TextStyle(fontSize: 13)),
+                          items: [
+                            const DropdownMenuItem(
+                                value: null,
+                                child: Text('— Unassigned —',
+                                    style: TextStyle(fontSize: 13))),
+                            ...list.map((u) => DropdownMenuItem(
+                                  value: u.id,
+                                  child: Text(u.name,
+                                      style: const TextStyle(fontSize: 13)),
+                                )),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _therapistAssignments[target] = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         _label('Top Priority Goals (select up to 3)'),
         const SizedBox(height: 8),

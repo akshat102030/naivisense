@@ -9,7 +9,9 @@ import '../../features/parent/screens/child_detail_screen.dart';
 import '../../features/parent/screens/raise_alert_screen.dart';
 import '../../features/center_head/screens/center_head_home_screen.dart';
 import '../../features/center_head/screens/enrollment_wizard_screen.dart';
+import '../../features/center_head/screens/therapist_enrollment_wizard_screen.dart';
 import '../../features/center_head/screens/admin_child_report_screen.dart';
+import '../../features/center_head/screens/parent_enrollment_screen.dart';
 import '../../data/models/child.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -66,6 +68,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'enroll',
             builder: (ctx, _) => const EnrollmentWizardScreen(),
+          ),
+          GoRoute(
+            path: 'enroll-therapist',
+            builder: (ctx, _) => const TherapistEnrollmentWizardScreen(),
+          ),
+          GoRoute(
+            path: 'enroll-parent',
+            builder: (ctx, _) => const ParentEnrollmentScreen(),
           ),
           GoRoute(
             path: 'child/:childId',

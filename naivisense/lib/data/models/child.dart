@@ -1,3 +1,32 @@
+class TherapistAssignmentModel {
+  final String therapistId;
+  final String therapyType;
+  final String? therapistName;
+  final String? therapistPhone;
+
+  const TherapistAssignmentModel({
+    required this.therapistId,
+    required this.therapyType,
+    this.therapistName,
+    this.therapistPhone,
+  });
+
+  factory TherapistAssignmentModel.fromJson(Map<String, dynamic> j) {
+    final raw = j['therapist_id'];
+    return TherapistAssignmentModel(
+      therapistId:    raw is Map ? raw['_id'] as String? ?? '' : raw as String? ?? '',
+      therapyType:    j['therapy_type'] as String? ?? '',
+      therapistName:  raw is Map ? raw['name']  as String? : null,
+      therapistPhone: raw is Map ? raw['phone'] as String? : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'therapist_id': therapistId,
+    'therapy_type': therapyType,
+  };
+}
+
 class ChildModel {
   final String id;
   final String name;
@@ -5,14 +34,17 @@ class ChildModel {
   final List<String> diagnosis;
   final String severity;
   final String centerId;
-  final String therapistId;
+  final List<TherapistAssignmentModel> therapists;
   final String parentId;
-  final String? therapistName;
-  final String? therapistPhone;
   final String? parentName;
   final String? parentPhone;
   final String? avatarUrl;
   final Map<String, dynamic>? homeContext;
+
+  // Backward-compat getters — point to the first assigned therapist
+  String  get therapistId    => therapists.isNotEmpty ? therapists.first.therapistId    : '';
+  String? get therapistName  => therapists.isNotEmpty ? therapists.first.therapistName  : null;
+  String? get therapistPhone => therapists.isNotEmpty ? therapists.first.therapistPhone : null;
 
   const ChildModel({
     required this.id,
@@ -21,10 +53,8 @@ class ChildModel {
     required this.diagnosis,
     required this.severity,
     required this.centerId,
-    required this.therapistId,
+    required this.therapists,
     required this.parentId,
-    this.therapistName,
-    this.therapistPhone,
     this.parentName,
     this.parentPhone,
     this.avatarUrl,
@@ -66,24 +96,26 @@ class ChildModel {
         ? diag.map((e) => e.toString()).toList()
         : [diag.toString()];
 
-    final therapistRaw = j['therapist_id'];
-    final parentRaw    = j['parent_id'];
+    final parentRaw = j['parent_id'];
+
+    final therapistsList = (j['therapists'] as List?)
+        ?.map((e) => TherapistAssignmentModel.fromJson(e as Map<String, dynamic>))
+        .toList() ??
+        [];
 
     return ChildModel(
-      id:             j['_id'] as String? ?? '',
-      name:           j['name'] as String? ?? '',
-      ageYears:       (j['age_years'] as int?) ?? _ageFromDob(j['dob'] as String?),
-      diagnosis:      diagList,
-      severity:       j['severity'] as String? ?? 'mild',
-      centerId:       j['center_id'] as String? ?? '',
-      therapistId:    _extractId(therapistRaw),
-      parentId:       _extractId(parentRaw),
-      therapistName:  _extractName(therapistRaw),
-      therapistPhone: _extractPhone(therapistRaw),
-      parentName:     _extractName(parentRaw),
-      parentPhone:    _extractPhone(parentRaw),
-      avatarUrl:      j['avatar_url'] as String?,
-      homeContext:    j['home_context'] as Map<String, dynamic>?,
+      id:          j['_id'] as String? ?? '',
+      name:        j['name'] as String? ?? '',
+      ageYears:    (j['age_years'] as int?) ?? _ageFromDob(j['dob'] as String?),
+      diagnosis:   diagList,
+      severity:    j['severity'] as String? ?? 'mild',
+      centerId:    j['center_id'] as String? ?? '',
+      therapists:  therapistsList,
+      parentId:    _extractId(parentRaw),
+      parentName:  _extractName(parentRaw),
+      parentPhone: _extractPhone(parentRaw),
+      avatarUrl:   j['avatar_url'] as String?,
+      homeContext: j['home_context'] as Map<String, dynamic>?,
     );
   }
 }

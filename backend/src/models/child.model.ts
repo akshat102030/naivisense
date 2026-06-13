@@ -10,7 +10,7 @@ export interface IChild extends Document {
   severity:         'mild' | 'moderate' | 'high_support';
   primary_concerns: string[];
   therapy_targets:  string[];
-  therapist_id?:    mongoose.Types.ObjectId;
+  therapists:       { therapist_id: mongoose.Types.ObjectId; therapy_type: string }[];
   parent_id:        mongoose.Types.ObjectId;
   center_id?:       mongoose.Types.ObjectId;
   medical: {
@@ -58,7 +58,10 @@ const childSchema = new Schema<IChild>(
     severity:         { type: String, enum: ['mild', 'moderate', 'high_support'] },
     primary_concerns: [{ type: String }],
     therapy_targets:  [{ type: String }],
-    therapist_id:     { type: Schema.Types.ObjectId, ref: 'User' },
+    therapists: [{
+      therapist_id: { type: Schema.Types.ObjectId, ref: 'User' },
+      therapy_type: { type: String, default: '' },
+    }],
     parent_id:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
     center_id:        { type: Schema.Types.ObjectId },
     medical: {
@@ -103,6 +106,6 @@ const childSchema = new Schema<IChild>(
 );
 
 childSchema.index({ parent_id:    1 });
-childSchema.index({ therapist_id: 1 });
+childSchema.index({ 'therapists.therapist_id': 1 });
 
 export const ChildModel = mongoose.model<IChild>('Child', childSchema);

@@ -17,7 +17,7 @@ export async function listAlerts(childId: string, user: AuthPayload) {
 
   const canAccess =
     user.role === 'center_head' ||
-    (user.role === 'therapist' && String(child.therapist_id) === user.sub) ||
+    (user.role === 'therapist' && (child.therapists ?? []).some((t) => String(t.therapist_id) === user.sub)) ||
     (user.role === 'parent'    && String(child.parent_id)    === user.sub);
 
   if (!canAccess) throw new AppError('FORBIDDEN', 'Access denied');

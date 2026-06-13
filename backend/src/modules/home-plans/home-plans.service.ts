@@ -3,7 +3,7 @@ import { HomeTaskLogModel }  from '../../models/home-task-log.model';
 import { VerificationModel } from '../../models/verification.model';
 import { ChildModel }        from '../../models/child.model';
 import { AppError }          from '../../middleware/error';
-import { uploadBuffer }      from '../../config/s3';
+import { uploadToCloudinary } from '../../config/cloudinary';
 import type { AuthPayload }  from '../../middleware/auth';
 import type { CreateHomePlanInput } from './home-plans.schema';
 
@@ -25,7 +25,7 @@ export async function getActivePlan(childId: string, user: AuthPayload) {
 
   const canAccess =
     user.role === 'center_head' ||
-    (user.role === 'therapist' && String(child.therapist_id) === user.sub) ||
+    (user.role === 'therapist' && (child.therapists ?? []).some((t) => String(t.therapist_id) === user.sub)) ||
     (user.role === 'parent'    && String(child.parent_id)    === user.sub);
 
   if (!canAccess) throw new AppError('FORBIDDEN', 'Access denied');
@@ -55,8 +55,12 @@ export async function logTask(
 
   let image_url: string | null = null;
   if (file) {
-    const key = `task-logs/${plan.child_id}/${planId}/${taskId}_${Date.now()}`;
-    image_url = await uploadBuffer(file.buffer, key, file.mimetype);
+    image_url = await uploadToCloudinary(
+      file.buffer,
+      'task-logs',
+      `${plan.child_id}/${planId}/${taskId}_${Date.now()}`,
+      file.mimetype,
+    );
   }
 
   const log = await HomeTaskLogModel.create({

@@ -1,8 +1,10 @@
-import { z }             from 'zod';
-import * as UsersService  from './users.service';
-import { uploadBuffer }   from '../../config/s3';
-import { asyncHandler }   from '../../utils/http';
-import { AppError }       from '../../middleware/error';
+import { z }                      from 'zod';
+import * as UsersService           from './users.service';
+import { uploadToCloudinary }      from '../../config/cloudinary';
+import { asyncHandler }            from '../../utils/http';
+import { AppError }                from '../../middleware/error';
+import { EnrollTherapistSchema }   from './users.therapist-schema';
+import { EnrollParentSchema }      from './users.parent-schema';
 
 const UpdateMeSchema = z.object({
   name: z.string().min(2).max(100).trim().optional(),
@@ -17,6 +19,39 @@ export const updateMe = asyncHandler(async (req, res) => {
   const { name } = UpdateMeSchema.parse(req.body);
   const user     = await UsersService.updateMe(req.user!, { name });
   res.json(user);
+});
+
+export const getTherapistsOverview = asyncHandler(async (req, res) => {
+  const data = await UsersService.getTherapistsOverview(req.user!);
+  res.json(data);
+});
+
+export const enrollTherapist = asyncHandler(async (req, res) => {
+  const input = EnrollTherapistSchema.parse(req.body);
+  const result = await UsersService.enrollTherapist(input, req.user!);
+  res.status(201).json(result);
+});
+
+export const enrollParent = asyncHandler(async (req, res) => {
+  const input = EnrollParentSchema.parse(req.body);
+  const result = await UsersService.enrollParent(input, req.user!);
+  res.status(201).json(result);
+});
+
+export const uploadTherapistDocument = asyncHandler(async (req, res) => {
+  if (!req.file) throw new AppError('INVALID_INPUT', 'No file provided');
+  const docType = req.params.docType as 'photo' | 'degree' | 'identity';
+  if (!['photo', 'degree', 'identity'].includes(docType)) {
+    throw new AppError('INVALID_INPUT', 'docType must be photo, degree, or identity');
+  }
+  const result = await UsersService.uploadTherapistDocument(
+    req.params.id,
+    docType,
+    req.file.buffer,
+    req.file.mimetype,
+    req.user!,
+  );
+  res.json(result);
 });
 
 export const listStaff = asyncHandler(async (req, res) => {
@@ -35,8 +70,12 @@ export const getUser = asyncHandler(async (req, res) => {
 
 export const uploadPhoto = asyncHandler(async (req, res) => {
   if (!req.file) throw new AppError('INVALID_INPUT', 'No image file provided');
-  const key       = `users/${req.user!.sub}/photo_${Date.now()}`;
-  const photo_url = await uploadBuffer(req.file.buffer, key, req.file.mimetype);
+  const photo_url = await uploadToCloudinary(
+    req.file.buffer,
+    'users',
+    `${req.user!.sub}/photo_${Date.now()}`,
+    req.file.mimetype,
+  );
   const user      = await UsersService.updateMe(req.user!, { photo_url });
   res.json(user);
 });
