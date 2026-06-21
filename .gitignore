@@ -10,6 +10,10 @@
 
 # Credentials — never commit
 credentials
+.env
+
+# Claude Code local permissions (project agents remain shareable)
+.claude/settings.local.json
 
 # ── Backend ──────────────────────────────────────────────────────────────────
 backend/node_modules/

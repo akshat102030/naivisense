@@ -1,29 +1,64 @@
+class SessionSchedule {
+  final List<int> days;    // 0=Sun, 1=Mon, ..., 6=Sat
+  final String fromTime;   // 'HH:MM' 24-h
+  final String toTime;     // 'HH:MM' 24-h
+
+  const SessionSchedule({
+    required this.days,
+    required this.fromTime,
+    required this.toTime,
+  });
+
+  static const _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  String get daysLabel => days.map((d) => _dayNames[d]).join(', ');
+
+  String get timeLabel => '$fromTime – $toTime';
+
+  factory SessionSchedule.fromJson(Map<String, dynamic> j) => SessionSchedule(
+    days:     (j['days'] as List?)?.map((e) => (e as num).toInt()).toList() ?? [],
+    fromTime: j['from_time'] as String? ?? '',
+    toTime:   j['to_time']  as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'days':      days,
+    'from_time': fromTime,
+    'to_time':   toTime,
+  };
+}
+
 class TherapistAssignmentModel {
   final String therapistId;
   final String therapyType;
   final String? therapistName;
   final String? therapistPhone;
+  final SessionSchedule? schedule;
 
   const TherapistAssignmentModel({
     required this.therapistId,
     required this.therapyType,
     this.therapistName,
     this.therapistPhone,
+    this.schedule,
   });
 
   factory TherapistAssignmentModel.fromJson(Map<String, dynamic> j) {
     final raw = j['therapist_id'];
+    final schedRaw = j['schedule'] as Map<String, dynamic>?;
     return TherapistAssignmentModel(
       therapistId:    raw is Map ? raw['_id'] as String? ?? '' : raw as String? ?? '',
       therapyType:    j['therapy_type'] as String? ?? '',
       therapistName:  raw is Map ? raw['name']  as String? : null,
       therapistPhone: raw is Map ? raw['phone'] as String? : null,
+      schedule:       schedRaw != null ? SessionSchedule.fromJson(schedRaw) : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'therapist_id': therapistId,
     'therapy_type': therapyType,
+    if (schedule != null) 'schedule': schedule!.toJson(),
   };
 }
 

@@ -51,7 +51,7 @@ class TherapistOverview {
         specialties:     (j['specialties'] as List?)?.map((e) => e.toString()).toList() ?? [],
         therapyMethods:  (j['therapy_methods'] as List?)?.map((e) => e.toString()).toList() ?? [],
         qualification:   j['qualification'] as String? ?? '',
-        yearsExperience: j['years_experience'] as int? ?? 0,
+        yearsExperience: (j['years_experience'] as num?)?.toInt() ?? 0,
         children:        (j['children'] as List?)
                 ?.map((e) => TherapistChildSummary.fromJson(e as Map<String, dynamic>))
                 .toList() ??

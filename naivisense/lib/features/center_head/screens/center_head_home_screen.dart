@@ -318,7 +318,7 @@ class _TherapistAdminCardState extends State<_TherapistAdminCard> {
                                 fontSize: 12, color: AppColors.textSecondary),
                           ),
                         Text(
-                          '${t.yearsExperience} yrs exp  •  ${t.children.length} child${t.children.length == 1 ? '' : 'ren'}',
+                          '${t.yearsExperience > 0 ? '${t.yearsExperience} yrs exp' : 'Exp not set'}  •  ${t.children.length} child${t.children.length == 1 ? '' : 'ren'}',
                           style: const TextStyle(
                               fontSize: 12, color: AppColors.textSecondary),
                         ),
@@ -335,17 +335,24 @@ class _TherapistAdminCardState extends State<_TherapistAdminCard> {
           ),
 
           // Specialties chips
-          if (specialties.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: specialties
-                    .map((s) => _SpecialtyChip(label: s))
-                    .toList(),
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: specialties.isEmpty
+                ? Text(
+                    'No specialties listed',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary.withValues(alpha: 0.6),
+                        fontStyle: FontStyle.italic),
+                  )
+                : Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: specialties
+                        .map((s) => _SpecialtyChip(label: s))
+                        .toList(),
+                  ),
+          ),
 
           // Expanded children list
           if (_expanded && t.children.isNotEmpty) ...[

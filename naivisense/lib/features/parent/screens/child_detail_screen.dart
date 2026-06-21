@@ -46,6 +46,8 @@ class ChildDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 20),
                   _buildNextSession(context, sessions),
                   const SizedBox(height: 20),
+                  _buildScheduledSessions(context),
+                  const SizedBox(height: 20),
                   _buildHomePlan(context, ref, plan),
                   const SizedBox(height: 20),
                   _buildDietPlan(context, dietPlan),
@@ -285,6 +287,71 @@ class ChildDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+      ],
+    );
+  }
+
+  // ── Scheduled Sessions ────────────────────────────────────────────────────
+  Widget _buildScheduledSessions(BuildContext context) {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    final assignments = child.therapists
+        .where((a) => a.schedule != null && a.schedule!.days.isNotEmpty)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Scheduled Sessions', Icons.calendar_month_outlined),
+        const SizedBox(height: 12),
+        if (assignments.isEmpty)
+          const _EmptyHint(message: 'No recurring schedule set yet')
+        else
+          ...assignments.map((a) {
+            final sched = a.schedule!;
+            final daysLabel = sched.days.map((d) => dayNames[d]).join(', ');
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: AppCard(
+                color: AppColors.primaryBlue.withValues(alpha: 0.03),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.repeat,
+                          color: AppColors.primaryBlue, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(a.therapyType,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14)),
+                          if (a.therapistName != null)
+                            Text(a.therapistName!,
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12)),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$daysLabel  •  ${sched.fromTime} – ${sched.toTime}',
+                            style: const TextStyle(
+                                color: AppColors.primaryBlue, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
       ],
     );
   }

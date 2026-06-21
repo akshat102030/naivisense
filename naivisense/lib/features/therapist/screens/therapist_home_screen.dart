@@ -52,6 +52,8 @@ class TherapistHomeScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   _buildTodaySessions(context, ref, sessions, children),
                   const SizedBox(height: 24),
+                  _buildScheduledSessions(context, ref, children),
+                  const SizedBox(height: 24),
                   _buildChildrenList(context, children),
                 ]),
               ),
@@ -164,6 +166,91 @@ class TherapistHomeScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildScheduledSessions(BuildContext context, WidgetRef ref,
+      AsyncValue<List<ChildModel>> children) {
+    final user = ref.watch(authProvider).valueOrNull?.user;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Scheduled Sessions',
+            style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 12),
+        children.when(
+          loading: () => const sw.LoadingWidget(),
+          error:   (e, _) => sw.ErrorWidget(message: e.toString()),
+          data:    (list) {
+            final slots = <_ScheduleSlotRow>[];
+            for (final child in list) {
+              for (final assignment in child.therapists) {
+                if (assignment.therapistId != user?.id) continue;
+                final sched = assignment.schedule;
+                if (sched == null || sched.days.isEmpty) continue;
+                slots.add(_ScheduleSlotRow(
+                  childName:   child.name,
+                  therapyType: assignment.therapyType,
+                  schedule:    sched,
+                ));
+              }
+            }
+            if (slots.isEmpty) {
+              return const sw.EmptyWidget(
+                message: 'No recurring schedule set',
+                icon: Icons.calendar_month_outlined,
+              );
+            }
+            return Column(
+              children: slots
+                  .map((s) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: AppCard(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryBlue,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(s.childName,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${s.therapyType}  •  ${s.schedule.timeLabel}',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      s.schedule.daysLabel,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.primaryBlue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildChildrenList(
       BuildContext context, AsyncValue<List<ChildModel>> children) {
     return Column(
@@ -266,6 +353,17 @@ class _SessionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ScheduleSlotRow {
+  final String childName;
+  final String therapyType;
+  final SessionSchedule schedule;
+  const _ScheduleSlotRow({
+    required this.childName,
+    required this.therapyType,
+    required this.schedule,
+  });
 }
 
 class _ChildTile extends StatelessWidget {

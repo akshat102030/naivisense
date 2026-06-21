@@ -55,9 +55,10 @@ class _EnrollmentWizardScreenState
   String _parentInv   = 'medium';
 
   // ── Step 6: Goals & Consent ───────────────────────────────────────────────
-  final _therapyTargets      = <String>{};
-  final _therapistAssignments = <String, String?>{};  // therapy_type → therapist_id
-  final _goalPriorities      = <String>{};
+  final _therapyTargets       = <String>{};
+  final _therapistAssignments = <String, String?>{};   // therapy_type → therapist_id
+  final _therapistSchedules   = <String, _ScheduleEntry?>{};  // therapy_type → schedule
+  final _goalPriorities       = <String>{};
   double _timeline      = 6;
   final _consentByCtr   = TextEditingController();
   bool _consentGiven    = false;
@@ -122,7 +123,18 @@ class _EnrollmentWizardScreenState
       'parent_id':        _parentId,
       'therapists': _therapistAssignments.entries
           .where((e) => e.value != null)
-          .map((e) => {'therapist_id': e.value!, 'therapy_type': e.key})
+          .map((e) {
+            final sched = _therapistSchedules[e.key];
+            return {
+              'therapist_id': e.value!,
+              'therapy_type': e.key,
+              if (sched != null && sched.days.isNotEmpty) 'schedule': {
+                'days':      sched.days,
+                'from_time': sched.fromTime,
+                'to_time':   sched.toTime,
+              },
+            };
+          })
           .toList(),
       'diagnosis':        _diagnoses.toList(),
       'severity':         _severity,
@@ -718,50 +730,58 @@ class _EnrollmentWizardScreenState
                 style: const TextStyle(color: AppColors.softCoral)),
             data: (list) => Column(
               children: _therapyTargets.map((target) {
+                final sched = _therapistSchedules[target];
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Therapy type label
-                      SizedBox(
-                        width: 130,
-                        child: Text(
-                          target,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 130,
+                            child: Text(
+                              target,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Therapist dropdown
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _therapistAssignments[target],
-                          decoration: const InputDecoration(
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            isDense: true,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _therapistAssignments[target],
+                              decoration: const InputDecoration(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                isDense: true,
+                              ),
+                              hint: const Text('Unassigned',
+                                  style: TextStyle(fontSize: 13)),
+                              items: [
+                                const DropdownMenuItem(
+                                    value: null,
+                                    child: Text('— Unassigned —',
+                                        style: TextStyle(fontSize: 13))),
+                                ...list.map((u) => DropdownMenuItem(
+                                      value: u.id,
+                                      child: Text(u.name,
+                                          style: const TextStyle(fontSize: 13)),
+                                    )),
+                              ],
+                              onChanged: (v) => setState(
+                                  () => _therapistAssignments[target] = v),
+                            ),
                           ),
-                          hint: const Text('Unassigned',
-                              style: TextStyle(fontSize: 13)),
-                          items: [
-                            const DropdownMenuItem(
-                                value: null,
-                                child: Text('— Unassigned —',
-                                    style: TextStyle(fontSize: 13))),
-                            ...list.map((u) => DropdownMenuItem(
-                                  value: u.id,
-                                  child: Text(u.name,
-                                      style: const TextStyle(fontSize: 13)),
-                                )),
-                          ],
-                          onChanged: (v) =>
-                              setState(() => _therapistAssignments[target] = v),
-                        ),
+                        ],
                       ),
+                      if (_therapistAssignments[target] != null) ...[
+                        const SizedBox(height: 10),
+                        _buildSchedulePicker(target, sched),
+                      ],
                     ],
                   ),
                 );
@@ -917,6 +937,126 @@ class _EnrollmentWizardScreenState
     );
   }
 
+  static const _dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  static const _dayFullNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  Widget _buildSchedulePicker(String target, _ScheduleEntry? sched) {
+    final days      = sched?.days ?? [];
+    final fromTime  = sched?.fromTime;
+    final toTime    = sched?.toTime;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue.withValues(alpha: 0.05),
+        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Session Schedule',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryBlue)),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(7, (i) {
+              final selected = days.contains(i);
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      final updated = List<int>.from(days);
+                      selected ? updated.remove(i) : updated.add(i);
+                      updated.sort();
+                      _therapistSchedules[target] = _ScheduleEntry(
+                        days:     updated,
+                        fromTime: fromTime ?? '09:00',
+                        toTime:   toTime   ?? '10:00',
+                      );
+                    });
+                  },
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected
+                          ? AppColors.primaryBlue
+                          : AppColors.background,
+                      border: Border.all(
+                        color: selected
+                            ? AppColors.primaryBlue
+                            : AppColors.divider,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        _dayLabels[i],
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: selected
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          if (days.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _TimePickerButton(
+                    label: 'From',
+                    time: fromTime,
+                    onPicked: (t) => setState(() {
+                      _therapistSchedules[target] = _ScheduleEntry(
+                        days:     days,
+                        fromTime: t,
+                        toTime:   toTime ?? '10:00',
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TimePickerButton(
+                    label: 'To',
+                    time: toTime,
+                    onPicked: (t) => setState(() {
+                      _therapistSchedules[target] = _ScheduleEntry(
+                        days:     days,
+                        fromTime: fromTime ?? '09:00',
+                        toTime:   t,
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+            if (fromTime != null && toTime != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '${days.map((d) => _dayFullNames[d]).join(', ')}  •  $fromTime – $toTime',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.primaryBlue),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   int _ageYears(DateTime dob) {
     final now = DateTime.now();
     int years = now.year - dob.year;
@@ -930,6 +1070,61 @@ class _EnrollmentWizardScreenState
     int months = now.month - dob.month;
     if (months < 0) months += 12;
     return months;
+  }
+}
+
+// ── Schedule entry ────────────────────────────────────────────────────────────
+class _ScheduleEntry {
+  final List<int> days;
+  final String fromTime;
+  final String toTime;
+  const _ScheduleEntry({required this.days, required this.fromTime, required this.toTime});
+}
+
+// ── Time picker button ────────────────────────────────────────────────────────
+class _TimePickerButton extends StatelessWidget {
+  final String label;
+  final String? time;
+  final void Function(String) onPicked;
+  const _TimePickerButton({required this.label, required this.time, required this.onPicked});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final parts = time?.split(':');
+        final initial = parts != null
+            ? TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]))
+            : TimeOfDay.now();
+        final picked = await showTimePicker(context: context, initialTime: initial);
+        if (picked != null) {
+          onPicked(
+            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          border: Border.all(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              time != null ? '$label: $time' : label,
+              style: TextStyle(
+                fontSize: 13,
+                color: time != null ? AppColors.textPrimary : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

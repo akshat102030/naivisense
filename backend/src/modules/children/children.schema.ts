@@ -13,6 +13,11 @@ export const CreateChildSchema = z.object({
   therapists: z.array(z.object({
     therapist_id: z.string().length(24),
     therapy_type: z.string().min(1),
+    schedule: z.object({
+      days:      z.array(z.number().int().min(0).max(6)),
+      from_time: z.string().regex(/^\d{2}:\d{2}$/),
+      to_time:   z.string().regex(/^\d{2}:\d{2}$/),
+    }).optional(),
   })).optional().default([]),
   medical: z.object({
     birth_history:       z.enum(['normal', 'premature', 'complications']).default('normal'),

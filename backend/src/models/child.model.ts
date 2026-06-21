@@ -1,5 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface ISessionSchedule {
+  days:      number[];  // 0=Sun 1=Mon … 6=Sat
+  from_time: string;    // 'HH:MM' 24-h
+  to_time:   string;    // 'HH:MM' 24-h
+}
+
 export interface IChild extends Document {
   name:             string;
   nickname?:        string;
@@ -10,7 +16,7 @@ export interface IChild extends Document {
   severity:         'mild' | 'moderate' | 'high_support';
   primary_concerns: string[];
   therapy_targets:  string[];
-  therapists:       { therapist_id: mongoose.Types.ObjectId; therapy_type: string }[];
+  therapists:       { therapist_id: mongoose.Types.ObjectId; therapy_type: string; schedule?: ISessionSchedule }[];
   parent_id:        mongoose.Types.ObjectId;
   center_id?:       mongoose.Types.ObjectId;
   medical: {
@@ -61,6 +67,11 @@ const childSchema = new Schema<IChild>(
     therapists: [{
       therapist_id: { type: Schema.Types.ObjectId, ref: 'User' },
       therapy_type: { type: String, default: '' },
+      schedule: {
+        days:      [{ type: Number }],
+        from_time: { type: String },
+        to_time:   { type: String },
+      },
     }],
     parent_id:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
     center_id:        { type: Schema.Types.ObjectId },
