@@ -20,7 +20,8 @@ export async function register(input: RegisterInput) {
 }
 
 export async function login(input: LoginInput) {
-  const user = await UserModel.findOne({ phone: input.phone });
+  let user = await UserModel.findOne({ phone: input.phone });
+
   if (!user) throw new AppError('UNAUTHORIZED', 'Invalid phone or password');
 
   const ok = await bcrypt.compare(input.password, user.password_hash);

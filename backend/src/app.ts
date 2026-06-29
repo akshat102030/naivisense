@@ -14,9 +14,11 @@ import verificationRoutes from './modules/verification/verification.routes';
 import alertsRoutes      from './modules/alerts/alerts.routes';
 import reportsRoutes     from './modules/reports/reports.routes';
 import aiRoutes          from './modules/ai/ai.routes';
+import morgan from 'morgan';
 
 const app = express();
-
+app.set("trust proxy", 1);
+app.use(morgan('dev'));
 app.use(helmet());
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN ?? '*', credentials: true }));
 app.use(generalRateLimit);
