@@ -1,9 +1,11 @@
-import prisma from '../config/database.config';
-import qdrantClient from '../../config/qdrant';
-import embeddingService from './embedding.service';
 import { v4 as uuidv4 } from 'uuid';
 import pdfParse, { Result } from 'pdf-parse';
-import {ChunkRow} from '../../models/chunk.row';
+
+import qdrantClient from '../../config/qdrant';
+import embeddingService from './embedding.service';
+
+import { DocumentModel } from '../../models/document';
+import { DocumentChunkModel } from '../../models/document.chunks';
 
 class DocumentServiceRag {
     private chunkSize = 1000;
@@ -17,11 +19,13 @@ class DocumentServiceRag {
     async extractTextFromFile(buffer: Buffer, mimeType: string): Promise<string> {
         if (mimeType === 'application/pdf') {
             return this.extractTextFromPDF(buffer);
-        } else if (mimeType === 'text/plain') {
-            return buffer.toString('utf-8');
-        } else {
-            throw new Error(`Unsupported file type: ${mimeType}`);
         }
+
+        if (mimeType === 'text/plain') {
+            return buffer.toString('utf8');
+        }
+
+        throw new Error(`Unsupported file type: ${mimeType}`);
     }
 
     chunkText(text: string): string[] {
@@ -32,10 +36,16 @@ class DocumentServiceRag {
         let currentLength = 0;
 
         for (const word of words) {
-            if (currentLength + word.length + 1 > this.chunkSize && currentChunk.length > 0) {
+            if (
+                currentLength + word.length + 1 > this.chunkSize &&
+                currentChunk.length > 0
+            ) {
                 chunks.push(currentChunk.join(' '));
 
-                const overlapWords = currentChunk.slice(-Math.floor(this.chunkOverlap / 10));
+                const overlapWords = currentChunk.slice(
+                    -Math.floor(this.chunkOverlap / 10)
+                );
+
                 currentChunk = [...overlapWords];
                 currentLength = currentChunk.join(' ').length;
             }
@@ -44,186 +54,155 @@ class DocumentServiceRag {
             currentLength += word.length + 1;
         }
 
-        if (currentChunk.length > 0) {
+        if (currentChunk.length) {
             chunks.push(currentChunk.join(' '));
         }
 
         return chunks;
     }
 
-    async processDocument(tenantId: string, file: Express.Multer.File, metadata?: Record<string, any>) {
-        const document = await prisma.document.create({
-            data: {
-                tenantId,
-                filename: file.originalname,
-                fileSize: file.size,
-                mimeType: file.mimetype,
-                metadata: metadata || {},
-                status: 'PROCESSING',
-            },
+    async processDocument(
+        centerId: string,
+        file: Express.Multer.File,
+        metadata?: Record<string, any>,
+    ) {
+        const document = await DocumentModel.create({
+            center_id: centerId,
+            filename: file.originalname,
+            file_size: file.size,
+            mime_type: file.mimetype,
+            metadata: metadata || {},
+            status: 'PROCESSING',
         });
 
         try {
-            const text = await this.extractTextFromFile(file.buffer, file.mimetype);
-
+            const text = await this.extractTextFromFile(
+                file.buffer,
+                file.mimetype,
+            );
 
             const chunks = this.chunkText(text);
 
+            const embeddings =
+                await embeddingService.generateBatchEmbeddings(chunks);
 
-            const embeddings = await embeddingService.generateBatchEmbeddings(chunks);
-
-
-            const chunkRecords = [];
+            const chunkDocs = [];
             const points = [];
 
             for (let i = 0; i < chunks.length; i++) {
-                const chunkId = uuidv4();
                 const vectorId = uuidv4();
 
-                chunkRecords.push({
-                    id: chunkId,
-                    documentId: document.id,
-                    tenantId,
+                chunkDocs.push({
+                    document_id: document._id,
+                    center_id: centerId,
                     content: chunks[i],
-                    chunkIndex: i,
-                    vectorId,
-                    metadata: { chunkIndex: i, ...metadata },
+                    chunk_index: i,
+                    vector_id: vectorId,
+                    metadata: {
+                        chunkIndex: i,
+                        ...metadata,
+                    },
                 });
 
                 points.push({
                     id: vectorId,
                     vector: embeddings[i],
                     payload: {
-                        tenant_id: tenantId,
-                        document_id: document.id,
-                        chunk_id: chunkId,
-                        content: chunks[i],
-                        filename: file.originalname,
+                        center_id: centerId,
+                        document_id: document._id.toString(),
                         chunk_index: i,
+                        filename: file.originalname,
+                        content: chunks[i],
                         metadata: JSON.stringify(metadata || {}),
                     },
                 });
             }
 
-            await prisma.documentChunk.createMany({
-                data: chunkRecords,
-            });
+            await DocumentChunkModel.insertMany(chunkDocs);
 
             await qdrantClient.upsert('document_chunks', {
                 points,
             });
 
+            document.status = 'PROCESSED';
+            document.chunk_count = chunks.length;
+            document.processed_at = new Date();
 
-            await prisma.document.update({
-                where: { id: document.id },
-                data: {
-                    status: 'COMPLETED',
-                    chunkCount: chunks.length,
-                    processedAt: new Date(),
-                },
-            });
+            await document.save();
 
             return document;
-        } catch (error) {
-            console.error('Error processing rag:', error);
+        } catch (err) {
+            console.error(err);
 
-            await prisma.document.update({
-                where: { id: document.id },
-                data: { status: 'FAILED' },
-            });
+            document.status = 'FAILED';
+            await document.save();
 
-            throw error;
+            throw err;
         }
     }
 
-    async getDocuments(tenantId: string, page: number = 1, limit: number = 10) {
+    async getDocuments(
+        centerId: string,
+        page = 1,
+        limit = 10,
+    ) {
         const skip = (page - 1) * limit;
 
         const [documents, total] = await Promise.all([
-            prisma.document.findMany({
-                where: { tenantId, status: { not: 'DELETED' } },
-                skip,
-                take: limit,
-                orderBy: { uploadedAt: 'desc' },
-                select: {
-                    id: true,
-                    filename: true,
-                    fileSize: true,
-                    mimeType: true,
-                    status: true,
-                    chunkCount: true,
-                    uploadedAt: true,
-                    processedAt: true,
-                },
-            }),
-            prisma.document.count({
-                where: { tenantId, status: { not: 'DELETED' } },
+            DocumentModel.find({
+                center_id: centerId,
+            })
+                .sort({ uploaded_at: -1 })
+                .skip(skip)
+                .limit(limit)
+                .select(
+                    'filename file_size mime_type status chunk_count uploaded_at processed_at',
+                ),
+
+            DocumentModel.countDocuments({
+                center_id: centerId,
             }),
         ]);
 
-        return { documents, total, page, limit };
+        return {
+            documents,
+            total,
+            page,
+            limit,
+        };
     }
 
-
-    async deleteDocument(tenantId: string, documentId: string) {
-        const BATCH_SIZE = 500;
-        let cursor: string | undefined = undefined;
-
+    async deleteDocument(centerId: string, documentId: string) {
         try {
-            while (true) {
-                const chunks: ChunkRow[] = await prisma.documentChunk.findMany({
-                    where: {
-                        documentId,
-                        tenantId,
-                    },
-                    select: {
-                        id: true,
-                        vectorId: true,
-                    },
-                    take: BATCH_SIZE,
-                    ...(cursor
-                        ? {
-                            skip: 1,
-                            cursor: { id: cursor },
-                        }
-                        : {}),
-                    orderBy: { id: 'asc' },
-                });
-
-                if (chunks.length === 0) break;
-
-                const vectorIds: string[] = chunks.map((c: ChunkRow) => c.vectorId);
-
-                if (vectorIds.length > 0) {
-                    await qdrantClient.delete('document_chunks', {
-                        points: vectorIds,
-                    });
-                }
-
-                await prisma.documentChunk.deleteMany({
-                    where: {
-                        id: { in: chunks.map((c: ChunkRow) => c.id) },
-                        tenantId,
-                    },
-                });
-
-                cursor = chunks[chunks.length - 1].id;
-            }
-
-            await prisma.document.update({
-                where: {
-                    id: documentId,
-                    tenantId,
-                },
-                data: {
-                    status: 'DELETED',
-                },
+            const chunks = await DocumentChunkModel.find({
+                center_id: centerId,
+                document_id: documentId,
             });
 
-            return { success: true };
-        } catch (error) {
-            console.error('Error deleting rag:', error);
-            throw error;
+            const vectorIds = chunks.map((c) => c.vector_id);
+
+            if (vectorIds.length) {
+                await qdrantClient.delete('document_chunks', {
+                    points: vectorIds,
+                });
+            }
+
+            await DocumentChunkModel.deleteMany({
+                center_id: centerId,
+                document_id: documentId,
+            });
+
+            await DocumentModel.findOneAndDelete({
+                _id: documentId,
+                center_id: centerId,
+            });
+
+            return {
+                success: true,
+            };
+        } catch (err) {
+            console.error(err);
+            throw err;
         }
     }
 }

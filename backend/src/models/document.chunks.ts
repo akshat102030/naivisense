@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IDocumentChunk extends Document {
     document_id: mongoose.Types.ObjectId;
-    user_id:     mongoose.Types.ObjectId;
+    center_id:     mongoose.Types.ObjectId;
     content:     string;
     chunk_index: number;
     vector_id:   string;
@@ -19,7 +19,7 @@ const documentChunkSchema = new Schema<IDocumentChunk>(
             index: true,
         },
 
-        user_id: {
+        center_id: {
             type: Schema.Types.ObjectId,
             ref: 'User',
             required: true,

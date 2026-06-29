@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IDocument extends Document {
-    user_id:      mongoose.Types.ObjectId;
+    center_id:      mongoose.Types.ObjectId;
     filename:     string;
     file_size:    number;
     mime_type:    string;
@@ -15,7 +15,7 @@ export interface IDocument extends Document {
 
 const documentSchema = new Schema<IDocument>(
     {
-        user_id: {
+        center_id: {
             type: Schema.Types.ObjectId,
             ref: 'User',
             required: true,

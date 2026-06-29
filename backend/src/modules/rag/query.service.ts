@@ -18,7 +18,7 @@ class QueryService {
     private cacheTTL = 3600;
 
     async query(
-        userId: string,
+        centerId: string,
         request: QueryRequestBody
     ): Promise<QueryResponse> {
         const startTime = Date.now();
@@ -38,7 +38,7 @@ class QueryService {
             };
 
             await this.logQuery(
-                userId,
+                centerId,
                 request.query,
                 response,
                 startTime,
@@ -60,9 +60,9 @@ class QueryService {
                 filter: {
                     must: [
                         {
-                            key: 'user_id',
+                            key: 'center_id',
                             match: {
-                                value: userId,
+                                value: centerId,
                             },
                         },
                     ],
@@ -84,7 +84,7 @@ class QueryService {
             };
 
             await this.logQuery(
-                userId,
+                centerId,
                 request.query,
                 response,
                 startTime,
@@ -119,7 +119,7 @@ class QueryService {
             };
 
             await this.logQuery(
-                userId,
+                centerId,
                 request.query,
                 response,
                 startTime,
@@ -138,7 +138,7 @@ class QueryService {
             await llmService.generateResponse(
                 context,
                 request.query,
-                userId
+                centerId
             );
 
         const outOfScopeIndicators = [
@@ -171,7 +171,7 @@ class QueryService {
         };
 
         await this.logQuery(
-            userId,
+            centerId,
             request.query,
             response,
             startTime,
@@ -201,7 +201,7 @@ class QueryService {
     }
 
     private async logQuery(
-        userId: string,
+        centerId: string,
         query: string,
         response: QueryResponse,
         startTime: number,
@@ -214,7 +214,7 @@ class QueryService {
             await QueryLogModel.create({
                 user_id:
                     new mongoose.Types.ObjectId(
-                        userId
+                        centerId
                     ),
 
                 query,
