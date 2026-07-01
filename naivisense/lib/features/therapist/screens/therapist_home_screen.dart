@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:naivisense/core/utils/responsive.dart';
+import 'package:naivisense/features/therapist/widgets/build_children_list.dart';
+import 'package:naivisense/features/therapist/widgets/build_scheduled_sessions.dart';
+import 'package:naivisense/features/therapist/widgets/build_stats.dart';
+import 'package:naivisense/features/therapist/widgets/build_today_sessions.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/date_utils.dart';
-import '../../../data/models/child.dart';
-import '../../../data/models/session.dart';
 import '../../../features/auth/providers/auth_provider.dart';
-import '../../../shared/widgets/app_card.dart';
-import '../../../shared/widgets/stat_tile.dart';
-import '../../../shared/widgets/state_widgets.dart' as sw;
 import '../providers/therapist_provider.dart';
-import 'session_notes_screen.dart';
 import 'create_session_screen.dart';
-import 'therapist_child_profile_screen.dart';
 
 class TherapistHomeScreen extends ConsumerWidget {
   const TherapistHomeScreen({super.key});
@@ -29,6 +26,7 @@ class TherapistHomeScreen extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final responsive = Responsive(context);
 
         final isMobile = width < mobileBreakpoint;
         final isTablet = width >= mobileBreakpoint && width < tabletBreakpoint;
@@ -70,34 +68,30 @@ class TherapistHomeScreen extends ConsumerWidget {
             },
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
+                constraints: const BoxConstraints(maxWidth: 1100),
                 child: CustomScrollView(
                   slivers: [
                     SliverPadding(
                       padding: EdgeInsets.all(horizontalPadding),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
-                          _buildStats(
-                            context,
-                            children,
-                            sessions,
-                            pending,
-                            isMobile,
-                            isTablet,
-                            isDesktop,
+                          DashboardStats(
+                            children: children,
+                            sessions: sessions,
+                            pending: pending,
                           ),
 
-                          SizedBox(height: isMobile ? 24 : 32),
+                          responsive.gapH(12, tablet: 16, desktop: 20),
 
-                          _buildTodaySessions(context, ref, sessions, children),
+                          TodaySessions(sessions: sessions, children: children),
 
-                          SizedBox(height: isMobile ? 24 : 32),
+                          responsive.gapH(12, tablet: 16, desktop: 20),
 
-                          _buildScheduledSessions(context, ref, children),
+                          ScheduledSessionsWidget(children: children),
 
-                          SizedBox(height: isMobile ? 24 : 32),
+                          responsive.gapH(12, tablet: 16, desktop: 20),
 
-                          _buildChildrenList(context, children),
+                          ChildrenListSection(children: children),
                         ]),
                       ),
                     ),
@@ -118,534 +112,10 @@ class TherapistHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStats(
-    BuildContext context,
-    AsyncValue children,
-    AsyncValue sessions,
-    AsyncValue pending,
-    bool isMobile,
-    bool isTablet,
-    bool isDesktop,
-  ) {
-    final childCount = children.valueOrNull?.length ?? 0;
-    final sessionCount = sessions.valueOrNull?.length ?? 0;
-    final pendingCount = pending.valueOrNull?.length ?? 0;
-
-    final crossAxisCount = isDesktop
-        ? 3
-        : isTablet
-        ? 3
-        : 1;
-
-    final double childAspectRatio = isDesktop
-        ? 1.1
-        : isTablet
-        ? 1
-        : 2.8;
-
-    return GridView.count(
-      crossAxisCount: crossAxisCount,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: childAspectRatio,
-      children: [
-        StatTile(
-          label: 'Children',
-          value: '$childCount',
-          icon: Icons.child_care,
-          iconColor: AppColors.primaryBlue,
-        ),
-
-        StatTile(
-          label: 'Sessions',
-          value: '$sessionCount',
-          icon: Icons.event_note,
-          iconColor: AppColors.mintGreen,
-        ),
-
-        StatTile(
-          label: 'Pending',
-          value: '$pendingCount',
-          icon: Icons.pending_actions,
-          iconColor: AppColors.warmYellow,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTodaySessions(
-    BuildContext context,
-    WidgetRef ref,
-    AsyncValue<List<SessionModel>> sessions,
-    AsyncValue<List<ChildModel>> children,
-  ) {
-    final width = MediaQuery.of(context).size.width;
-
-    final isMobile = width < 600;
-    final isTablet = width >= 600 && width < 1024;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Today's Sessions",
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontSize: isMobile
-                ? 20
-                : isTablet
-                ? 22
-                : 24,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        sessions.when(
-          loading: () => const sw.LoadingWidget(),
-
-          error: (e, _) => sw.ErrorWidget(message: e.toString()),
-
-          data: (list) {
-            final today = list.where((s) {
-              final d = s.scheduledAt;
-              final n = DateTime.now();
-
-              return d.year == n.year && d.month == n.month && d.day == n.day;
-            }).toList();
-
-            if (today.isEmpty) {
-              return const sw.EmptyWidget(
-                message: 'No sessions today',
-                icon: Icons.event_available,
-              );
-            }
-
-            final childMap = {
-              for (final c in (children.valueOrNull ?? [])) c.id: c.name,
-            };
-
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: today.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-
-              itemBuilder: (_, i) {
-                final s = today[i];
-
-                final childName = childMap[s.childId] ?? 'Unknown Child';
-
-                return _SessionCard(
-                  session: s,
-                  childName: childName,
-                  onNotes: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          SessionNotesScreen(session: s, childName: childName),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildScheduledSessions(
-    BuildContext context,
-    WidgetRef ref,
-    AsyncValue<List<ChildModel>> children,
-  ) {
-    final width = MediaQuery.of(context).size.width;
-
-    final isMobile = width < 600;
-    final isTablet = width >= 600 && width < 1024;
-
-    final user = ref.watch(authProvider).valueOrNull?.user;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Scheduled Sessions',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontSize: isMobile
-                ? 20
-                : isTablet
-                ? 22
-                : 24,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        children.when(
-          loading: () => const sw.LoadingWidget(),
-
-          error: (e, _) => sw.ErrorWidget(message: e.toString()),
-
-          data: (list) {
-            final slots = <_ScheduleSlotRow>[];
-
-            for (final child in list) {
-              for (final assignment in child.therapists) {
-                if (assignment.therapistId != user?.id) {
-                  continue;
-                }
-
-                final sched = assignment.schedule;
-
-                if (sched == null || sched.days.isEmpty) {
-                  continue;
-                }
-
-                slots.add(
-                  _ScheduleSlotRow(
-                    childName: child.name,
-                    therapyType: assignment.therapyType,
-                    schedule: sched,
-                  ),
-                );
-              }
-            }
-
-            if (slots.isEmpty) {
-              return const sw.EmptyWidget(
-                message: 'No recurring schedule set',
-                icon: Icons.calendar_month_outlined,
-              );
-            }
-
-            return Column(
-              children: slots
-                  .map(
-                    (s) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: AppCard(
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 4,
-                              height: isMobile ? 48 : 56,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryBlue,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-
-                            SizedBox(width: isMobile ? 10 : 12),
-
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    s.childName,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-
-                                  const SizedBox(height: 2),
-
-                                  Text(
-                                    '${s.therapyType} • ${s.schedule.timeLabel}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-
-                                  Text(
-                                    s.schedule.daysLabel,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.primaryBlue,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChildrenList(
-    BuildContext context,
-    AsyncValue<List<ChildModel>> children,
-  ) {
-    final width = MediaQuery.of(context).size.width;
-
-    final isMobile = width < 600;
-    final isTablet = width >= 600 && width < 1024;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'My Children',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontSize: isMobile
-                ? 20
-                : isTablet
-                ? 22
-                : 24,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        children.when(
-          loading: () => const sw.LoadingWidget(),
-
-          error: (e, _) => sw.ErrorWidget(message: e.toString()),
-
-          data: (list) {
-            if (list.isEmpty) {
-              return const sw.EmptyWidget(
-                message: 'No children assigned yet',
-                icon: Icons.child_care,
-              );
-            }
-
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _ChildTile(child: list[i]),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
   void _showCreateSession(BuildContext context, WidgetRef ref) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CreateSessionScreen()),
-    );
-  }
-}
-
-class _SessionCard extends StatelessWidget {
-  final SessionModel session;
-  final String childName;
-  final VoidCallback onNotes;
-
-  const _SessionCard({
-    required this.session,
-    required this.childName,
-    required this.onNotes,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isCompleted = session.status == 'completed';
-
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 600;
-    final isTablet = width >= 600 && width < 1024;
-    final isDesktop = width >= 1024;
-
-    return AppCard(
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: isMobile ? 52 : 60,
-            decoration: BoxDecoration(
-              color: isCompleted ? AppColors.mintGreen : AppColors.primaryBlue,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          SizedBox(width: isMobile ? 10 : 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  childName,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: isDesktop
-                        ? 17
-                        : isTablet
-                        ? 16
-                        : 14,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  '${session.typeLabel} • '
-                  '${AppDateUtils.formatTime(session.scheduledAt)} • '
-                  '${session.durationMin} min',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: isDesktop
-                        ? 14
-                        : isTablet
-                        ? 13
-                        : 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          isCompleted
-              ? Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 8 : 10,
-                    vertical: isMobile ? 4 : 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.mintGreen.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Done',
-                    style: TextStyle(
-                      color: AppColors.mintGreen,
-                      fontSize: isMobile ? 11 : 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )
-              : TextButton(
-                  onPressed: onNotes,
-                  child: Text(
-                    'Add Notes',
-                    style: TextStyle(fontSize: isMobile ? 12 : 13),
-                  ),
-                ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScheduleSlotRow {
-  final String childName;
-  final String therapyType;
-  final SessionSchedule schedule;
-
-  const _ScheduleSlotRow({
-    required this.childName,
-    required this.therapyType,
-    required this.schedule,
-  });
-}
-
-class _ChildTile extends StatelessWidget {
-  final ChildModel child;
-
-  const _ChildTile({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
-    final isMobile = width < 600;
-    final isTablet = width >= 600 && width < 1024;
-    final isDesktop = width >= 1024;
-
-    final avatarRadius = isDesktop
-        ? 24.0
-        : isTablet
-        ? 22.0
-        : 20.0;
-
-    return AppCard(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TherapistChildProfileScreen(child: child),
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: avatarRadius,
-            backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.15),
-            child: Text(
-              child.name[0].toUpperCase(),
-              style: TextStyle(
-                color: AppColors.primaryBlue,
-                fontWeight: FontWeight.w600,
-                fontSize: isDesktop
-                    ? 18
-                    : isTablet
-                    ? 16
-                    : 14,
-              ),
-            ),
-          ),
-
-          SizedBox(width: isMobile ? 10 : 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  child.name,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontSize: isDesktop
-                        ? 18
-                        : isTablet
-                        ? 16
-                        : 14,
-                  ),
-                ),
-
-                const SizedBox(height: 2),
-
-                Text(
-                  '${child.ageYears} yrs • ${child.diagnosis}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: isDesktop
-                        ? 14
-                        : isTablet
-                        ? 13
-                        : 12,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-
-          Icon(
-            Icons.chevron_right,
-            color: AppColors.textSecondary,
-            size: isDesktop
-                ? 24
-                : isTablet
-                ? 22
-                : 20,
-          ),
-        ],
-      ),
     );
   }
 }

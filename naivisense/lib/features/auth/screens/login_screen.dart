@@ -30,7 +30,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     final phone = '+91${_phoneCtr.text.trim()}';
 
     await ref.read(authProvider.notifier).login(phone, _passCtr.text);
@@ -39,15 +38,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-
     final loading =
         authState.isLoading || (authState.valueOrNull?.loading ?? false);
-
     final error = authState.valueOrNull?.error;
 
     ref.listen(authProvider, (_, next) {
-      if (next.valueOrNull?.status == AuthStatus.authenticated) {
-        final role = next.valueOrNull?.user?.role ?? '';
+      final state = next.valueOrNull;
+      if (state == null) return;
+
+      if (state.status == AuthStatus.authenticated) {
+        final role = state.user?.role ?? '';
 
         switch (role) {
           case 'therapist':
@@ -59,8 +59,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           case 'center_head':
             context.go('/center-head');
             break;
-          default:
-            context.go('/login');
         }
       }
     });

@@ -14,72 +14,47 @@ class Responsive {
   bool get isMobile => screenWidth < mobileBreakpoint;
 
   bool get isTablet =>
-      screenWidth >= mobileBreakpoint &&
-      screenWidth < tabletBreakpoint;
+      screenWidth >= mobileBreakpoint && screenWidth < tabletBreakpoint;
 
   bool get isDesktop => screenWidth >= tabletBreakpoint;
 
   // Width values
-  double w(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
+  double w(double mobile, {double? tablet, double? desktop}) {
     if (isDesktop) return desktop ?? tablet ?? mobile;
     if (isTablet) return tablet ?? mobile;
     return mobile;
   }
 
   // Height values
-  double h(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
+  double h(double mobile, {double? tablet, double? desktop}) {
     if (isDesktop) return desktop ?? tablet ?? mobile;
     if (isTablet) return tablet ?? mobile;
     return mobile;
   }
 
   // Font sizes
-  double sp(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
+  double sp(double mobile, {double? tablet, double? desktop}) {
     if (isDesktop) return desktop ?? tablet ?? mobile;
     if (isTablet) return tablet ?? mobile;
     return mobile;
   }
 
   // Icon sizes
-  double icon(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
+  double icon(double mobile, {double? tablet, double? desktop}) {
     if (isDesktop) return desktop ?? tablet ?? mobile;
     if (isTablet) return tablet ?? mobile;
     return mobile;
   }
 
   // Border radius
-  double radius(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
+  double radius(double mobile, {double? tablet, double? desktop}) {
     if (isDesktop) return desktop ?? tablet ?? mobile;
     if (isTablet) return tablet ?? mobile;
     return mobile;
   }
 
   // Avatar radius
-  double avatar(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
+  double avatar(double mobile, {double? tablet, double? desktop}) {
     if (isDesktop) return desktop ?? tablet ?? mobile;
     if (isTablet) return tablet ?? mobile;
     return mobile;
@@ -106,18 +81,8 @@ class Responsive {
     return double.infinity;
   }
 
-  EdgeInsets allPadding(
-    double mobile, {
-    double? tablet,
-    double? desktop,
-  }) {
-    return EdgeInsets.all(
-      w(
-        mobile,
-        tablet: tablet,
-        desktop: desktop,
-      ),
-    );
+  EdgeInsets allPadding(double mobile, {double? tablet, double? desktop}) {
+    return EdgeInsets.all(w(mobile, tablet: tablet, desktop: desktop));
   }
 
   EdgeInsets symmetricPadding({
@@ -134,11 +99,41 @@ class Responsive {
         tablet: horizontalTablet,
         desktop: horizontalDesktop,
       ),
-      vertical: h(
-        vertical,
-        tablet: verticalTablet,
-        desktop: verticalDesktop,
-      ),
+      vertical: h(vertical, tablet: verticalTablet, desktop: verticalDesktop),
     );
+  }
+
+  BorderRadius borderRadius(double mobile, {double? tablet, double? desktop}) {
+    return BorderRadius.circular(
+      radius(mobile, tablet: tablet, desktop: desktop),
+    );
+  }
+
+  SizedBox gapH(double mobile, {double? tablet, double? desktop}) {
+    return SizedBox(
+      height: h(mobile, tablet: tablet, desktop: desktop),
+    );
+  }
+
+  SizedBox gapW(double mobile, {double? tablet, double? desktop}) {
+    return SizedBox(
+      width: w(mobile, tablet: tablet, desktop: desktop),
+    );
+  }
+
+  double value({
+    required int mobile,
+    required int tablet,
+    required int desktop,
+  }) {
+    if (isDesktop) return desktop.toDouble();
+    if (isTablet) return tablet.toDouble();
+    return mobile.toDouble();
+  }
+
+  double? font(int i, {required int tablet, required int desktop}) {
+    if (isDesktop) return desktop.toDouble();
+    if (isTablet) return tablet.toDouble();
+    return i.toDouble();
   }
 }
