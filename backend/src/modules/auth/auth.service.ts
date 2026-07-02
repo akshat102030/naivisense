@@ -5,6 +5,10 @@ import { AppError }   from '../../middleware/error';
 import { env }        from '../../config/env';
 import type { RegisterInput, LoginInput } from './auth.schema';
 
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000;
+const failedLogins = new Map<string, { count: number; lockedUntil?: number }>();
+
 export async function register(input: RegisterInput) {
   const existing = await UserModel.findOne({ phone: input.phone });
   if (existing) throw new AppError('CONFLICT', 'Phone number already registered');
@@ -20,13 +24,30 @@ export async function register(input: RegisterInput) {
 }
 
 export async function login(input: LoginInput) {
+<<<<<<< HEAD
   let user = await UserModel.findOne({ phone: input.phone });
 
   if (!user) throw new AppError('UNAUTHORIZED', 'Invalid phone or password');
+=======
+  const attempt = failedLogins.get(input.phone);
+  if (attempt?.lockedUntil && attempt.lockedUntil > Date.now()) {
+    throw new AppError('UNAUTHORIZED', 'Account temporarily locked. Try again later.');
+  }
+
+  const user = await UserModel.findOne({ phone: input.phone });
+  if (!user) {
+    recordFailedLogin(input.phone);
+    throw new AppError('UNAUTHORIZED', 'Invalid phone or password');
+  }
+>>>>>>> 621065d26cd57f5b6029f004fd0285600a34d548
 
   const ok = await bcrypt.compare(input.password, user.password_hash);
-  if (!ok) throw new AppError('UNAUTHORIZED', 'Invalid phone or password');
+  if (!ok) {
+    recordFailedLogin(input.phone);
+    throw new AppError('UNAUTHORIZED', 'Invalid phone or password');
+  }
 
+  failedLogins.delete(input.phone);
   return { user, tokens: issueTokens(user.id as string, user.role) };
 }
 
@@ -47,4 +68,13 @@ function issueTokens(userId: string, role: string) {
   const accessToken  = jwt.sign(payload, env.JWT_ACCESS_SECRET,  { expiresIn: env.ACCESS_TOKEN_EXPIRES  as never });
   const refreshToken = jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: env.REFRESH_TOKEN_EXPIRES as never });
   return { accessToken, refreshToken };
+}
+
+function recordFailedLogin(phone: string) {
+  const current = failedLogins.get(phone) ?? { count: 0 };
+  const count = current.count + 1;
+  failedLogins.set(phone, {
+    count,
+    lockedUntil: count >= MAX_FAILED_LOGINS ? Date.now() + LOCKOUT_MS : undefined,
+  });
 }
