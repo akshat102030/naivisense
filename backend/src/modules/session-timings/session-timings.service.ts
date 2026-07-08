@@ -37,8 +37,6 @@ async function resolveTherapistId(user: AuthPayload, requestedTherapistId: strin
   throw new AppError('FORBIDDEN', 'Only therapists or a center head can manage session timings');
 }
 
-// 10-minute gap bhi enforce karta hai — jaise agar ek slot 11:00 pe end hota hai,
-// to naya slot 11:10 se pehle start nahi ho sakta usi therapist ke liye.
 async function assertNoOverlap(therapistId: string, date: Date, startTime: string, endTime: string, excludeId?: string) {
   const bufferedStart = minutesToTime(timeToMinutes(startTime) - BUFFER_MINUTES);
   const bufferedEnd   = minutesToTime(timeToMinutes(endTime)   + BUFFER_MINUTES);
@@ -60,6 +58,11 @@ async function assertNoOverlap(therapistId: string, date: Date, startTime: strin
 export async function createSessionTiming(input: CreateSessionTimingInput, user: AuthPayload) {
   if (input.start_time >= input.end_time) {
     throw new AppError('INVALID_INPUT', 'start_time must be before end_time');
+  }
+
+  const durationMinutes = timeToMinutes(input.end_time) - timeToMinutes(input.start_time);
+  if (durationMinutes !== 50) {
+    throw new AppError('INVALID_INPUT', 'Session duration must be exactly 50 minutes');
   }
 
   const therapistId = await resolveTherapistId(user, input.therapist_id);
@@ -111,6 +114,11 @@ export async function updateSessionTiming(id: string, updates: UpdateSessionTimi
 
   if (nextStart >= nextEnd) {
     throw new AppError('INVALID_INPUT', 'start_time must be before end_time');
+  }
+
+  const nextDuration = timeToMinutes(nextEnd) - timeToMinutes(nextStart);
+  if (nextDuration !== 50) {
+    throw new AppError('INVALID_INPUT', 'Session duration must be exactly 50 minutes');
   }
 
   if (updates.date || updates.start_time || updates.end_time) {
