@@ -167,6 +167,8 @@ export async function updateSession(
   }
 
 }
+
+  return session;
 }
 
 export async function cancelSession(
