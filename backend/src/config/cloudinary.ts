@@ -36,9 +36,16 @@ export async function uploadToCloudinaryFull(
     : mimetype.startsWith('video/')
     ? 'video'
     : 'raw';
+    
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
-      { folder, public_id: publicId, resource_type: resourceType, overwrite: true },
+      { 
+        // 100% same properties hain, bas order alphabetical rakha hai jo backend trace demand kar raha tha
+        folder: folder,
+        overwrite: true,
+        public_id: publicId, 
+        resource_type: resourceType
+      },
       (error, result) => {
         if (error || !result) return reject(error ?? new Error('Upload failed'));
         resolve({ url: result.secure_url, public_id: result.public_id });
