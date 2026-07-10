@@ -61,7 +61,7 @@ class NextSessionCard extends StatelessWidget {
         }
 
         return Container(
-          height: double.infinity,
+          // height: responsive.h(120, tablet: 130, desktop: 140),
           padding: EdgeInsets.all(responsive.w(18, tablet: 20, desktop: 24)),
           decoration: BoxDecoration(
             color: AppColors.primaryBlue.withValues(alpha: 0.08),

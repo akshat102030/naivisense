@@ -7,7 +7,6 @@ import 'package:naivisense/features/parent/widget/empty_hint.dart';
 import 'package:naivisense/features/parent/widget/section_header.dart';
 import 'package:naivisense/features/parent/widget/video_upload_button.dart';
 
-
 class ImprovementVideosSection extends StatelessWidget {
   final String childId;
   final AsyncValue<List<VideoItemModel>> videos;
@@ -25,14 +24,14 @@ class ImprovementVideosSection extends StatelessWidget {
     final crossAxisCount = r.isDesktop
         ? 3
         : r.isTablet
-            ? 2
-            : 1;
+        ? 2
+        : 1;
 
     final childAspectRatio = r.isDesktop
         ? 3.2
         : r.isTablet
-            ? 3.0
-            : 2.9;
+        ? 3.0
+        : 2.9;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,9 +45,7 @@ class ImprovementVideosSection extends StatelessWidget {
               ),
             ),
 
-            VideoUploadButton(
-              childId: childId,
-            ),
+            VideoUploadButton(childId: childId),
           ],
         ),
 
@@ -57,15 +54,12 @@ class ImprovementVideosSection extends StatelessWidget {
         videos.when(
           loading: () => const LinearProgressIndicator(),
 
-          error: (_, __) => EmptyHint(
-            message: 'Could not load videos',
-          ),
+          error: (_, __) => EmptyHint(message: 'Could not load videos'),
 
           data: (videoList) {
             if (videoList.isEmpty) {
               return EmptyHint(
-                message:
-                    'No videos yet — upload an observation video',
+                message: 'No videos yet — upload an observation video',
               );
             }
 
@@ -75,8 +69,7 @@ class ImprovementVideosSection extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              gridDelegate:
-                  SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
                 mainAxisSpacing: r.h(12),
                 crossAxisSpacing: r.w(12),
@@ -90,36 +83,21 @@ class ImprovementVideosSection extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: r.borderRadius(12),
-                    border: Border.all(
-                      color: AppColors.divider,
-                    ),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: r.w(
-                          56,
-                          tablet: 60,
-                          desktop: 64,
-                        ),
-                        height: r.w(
-                          56,
-                          tablet: 60,
-                          desktop: 64,
-                        ),
+                        width: r.w(56, tablet: 60, desktop: 64),
+                        height: r.w(56, tablet: 60, desktop: 64),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue
-                              .withValues(alpha: 0.10),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.10),
                           borderRadius: r.borderRadius(8),
                         ),
                         child: Icon(
                           Icons.play_circle_outline,
                           color: AppColors.primaryBlue,
-                          size: r.icon(
-                            28,
-                            tablet: 30,
-                            desktop: 32,
-                          ),
+                          size: r.icon(28, tablet: 30, desktop: 32),
                         ),
                       ),
 
@@ -127,23 +105,16 @@ class ImprovementVideosSection extends StatelessWidget {
 
                       Expanded(
                         child: Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               video.title,
                               maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: FontWeight.w500,
-                                fontSize: r.sp(
-                                  14,
-                                  tablet: 15,
-                                  desktop: 16,
-                                ),
+                                fontSize: r.sp(14, tablet: 15, desktop: 16),
                               ),
                             ),
 
@@ -152,16 +123,10 @@ class ImprovementVideosSection extends StatelessWidget {
                             Text(
                               video.categoryLabel,
                               maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color:
-                                    AppColors.textSecondary,
-                                fontSize: r.sp(
-                                  11,
-                                  tablet: 12,
-                                  desktop: 13,
-                                ),
+                                color: AppColors.textSecondary,
+                                fontSize: r.sp(11, tablet: 12, desktop: 13),
                               ),
                             ),
                           ],

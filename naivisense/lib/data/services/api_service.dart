@@ -26,6 +26,7 @@ class ApiService {
   Future<Response<T>> post<T>(String path, {dynamic data}) async {
     try {
       final res = await _dio.post<T>(path, data: data);
+      print("✅ API RESPONSE: ${res.data}");
       return res;
     } catch (e) {
       print("❌ API ERROR: $e");
@@ -41,8 +42,21 @@ class ApiService {
 
   Future<Response<T>> delete<T>(String path) => _dio.delete<T>(path);
 
-  Future<Response<T>> postForm<T>(String path, FormData data) =>
-      _dio.post<T>(path, data: data);
+  Future<Response<T>> postForm<T>(String path, FormData data) async {
+    try {
+      final res = await _dio.post<T>(path, data: data);
+
+      print("✅ FORM RESPONSE: ${res.data}");
+
+      return res;
+    } on DioException catch (e) {
+      print("❌ FORM ERROR STATUS: ${e.response?.statusCode}");
+      print("❌ FORM ERROR BODY: ${e.response?.data}");
+      print("❌ FORM ERROR HEADERS: ${e.response?.headers}");
+
+      rethrow;
+    }
+  }
 }
 
 class _AuthInterceptor extends Interceptor {
@@ -52,6 +66,7 @@ class _AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     final token = await StorageService.instance.getAccessToken();
+    print("TOKEN = $token");
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }

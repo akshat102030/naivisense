@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:naivisense/core/utils/responsive.dart';
 import 'package:naivisense/features/parent/widget/accepted_goals_section.dart';
 import 'package:naivisense/features/parent/widget/child_detail_app_bar.dart';
 import 'package:naivisense/features/parent/widget/diet_plan_section.dart';
-import 'package:naivisense/features/parent/widget/empty_hint.dart';
 import 'package:naivisense/features/parent/widget/home_plan.dart';
 import 'package:naivisense/features/parent/widget/improvement_videos_section.dart';
 import 'package:naivisense/features/parent/widget/last_session_notes_section.dart';
@@ -16,10 +13,8 @@ import 'package:naivisense/features/parent/widget/progress_section.dart';
 import 'package:naivisense/features/parent/widget/published_reviews_section.dart';
 import 'package:naivisense/features/parent/widget/raise_alert_card.dart';
 import 'package:naivisense/features/parent/widget/scheduled_sessions.dart';
-import 'package:naivisense/features/parent/widget/section_header.dart';
 import 'package:naivisense/features/therapist/widgets/child/diagnosis_section.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/date_utils.dart';
 import '../../../data/models/alert.dart';
 import '../../../data/models/child.dart';
 import '../../../data/models/diet_plan.dart';
@@ -28,8 +23,6 @@ import '../../../data/models/home_plan.dart';
 import '../../../data/models/review.dart';
 import '../../../data/models/video_item.dart';
 import '../../../data/models/session.dart';
-import '../../../shared/widgets/app_button.dart';
-import '../../../shared/widgets/app_card.dart';
 import '../providers/parent_provider.dart';
 
 class ChildDetailScreen extends ConsumerWidget {
@@ -112,10 +105,8 @@ class ChildDetailScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DiagnosisChips(child: child),
-
-        SizedBox(height: r.sectionSpacing),
-
+        // DiagnosisChips(child: child),
+        // SizedBox(height: r.sectionSpacing),
         ProgressSection(
           childId: child.id,
           childName: child.name,
@@ -154,8 +145,7 @@ class ChildDetailScreen extends ConsumerWidget {
 
         PublishedReviewsSection(reviews: reviews),
 
-        SizedBox(height: r.sectionSpacing),
-
+        // SizedBox(height: r.sectionSpacing),
         ImprovementVideosSection(childId: child.id, videos: videos),
 
         SizedBox(height: r.sectionSpacing),

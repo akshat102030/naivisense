@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:naivisense/data/models/schedule_entry.dart';
+import 'package:naivisense/features/center_head/widgets/schedule_picker.dart';
+import 'package:naivisense/features/center_head/widgets/step_dot.dart';
+import 'package:naivisense/features/center_head/widgets/therapist_dropdown.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../providers/enrollment_provider.dart';
@@ -59,7 +63,7 @@ class _EnrollmentWizardScreenState
   final _therapistAssignments =
       <String, String?>{}; // therapy_type → therapist_id
   final _therapistSchedules =
-      <String, _ScheduleEntry?>{}; // therapy_type → schedule
+      <String, ScheduleEntry?>{}; // therapy_type → schedule
   final _goalPriorities = <String>{};
   double _timeline = 6;
   final _consentByCtr = TextEditingController();
@@ -319,7 +323,7 @@ class _EnrollmentWizardScreenState
               return Expanded(
                 child: Row(
                   children: [
-                    _StepDot(index: i + 1, done: done, current: current),
+                    StepDot(index: i + 1, done: done, current: current),
                     if (i < 5)
                       Expanded(
                         child: Container(
@@ -1045,7 +1049,15 @@ class _EnrollmentWizardScreenState
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                _therapistDropdown(list, target),
+                                TherapistDropdown(
+                                  therapists: list,
+                                  value: _therapistAssignments[target],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _therapistAssignments[target] = value;
+                                    });
+                                  },
+                                ),
                               ],
                             )
                           : Row(
@@ -1061,7 +1073,15 @@ class _EnrollmentWizardScreenState
                                   ),
                                 ),
                                 Expanded(
-                                  child: _therapistDropdown(list, target),
+                                  child: TherapistDropdown(
+                                    therapists: list,
+                                    value: _therapistAssignments[target],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _therapistAssignments[target] = value;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ],
                             ),
@@ -1069,7 +1089,15 @@ class _EnrollmentWizardScreenState
                       // ── Schedule ──
                       if (_therapistAssignments[target] != null) ...[
                         SizedBox(height: gap),
-                        _buildSchedulePicker(target, sched),
+                        SchedulePicker(
+                          target: target,
+                          schedule: sched,
+                          dayLabels: _dayLabels,
+                          dayFullNames: _dayFullNames,
+                          onChanged: (days, fromTime, toTime) {
+                            // Handle schedule changes
+                          },
+                        ),
                       ],
                     ],
                   ),
@@ -1244,28 +1272,6 @@ class _EnrollmentWizardScreenState
     );
   }
 
-  Widget _therapistDropdown(List list, String target) {
-    return DropdownButtonFormField<String>(
-      value: _therapistAssignments[target],
-      isExpanded: true,
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      ),
-      hint: const Text('Unassigned'),
-      items: [
-        const DropdownMenuItem(value: null, child: Text('— Unassigned —')),
-        ...list.map(
-          (u) => DropdownMenuItem(
-            value: u.id,
-            child: Text(u.name, overflow: TextOverflow.ellipsis),
-          ),
-        ),
-      ],
-      onChanged: (v) => setState(() => _therapistAssignments[target] = v),
-    );
-  }
-
   static const _dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   static const _dayFullNames = [
     'Sun',
@@ -1276,128 +1282,6 @@ class _EnrollmentWizardScreenState
     'Fri',
     'Sat',
   ];
-
-  Widget _buildSchedulePicker(String target, _ScheduleEntry? sched) {
-    final days = sched?.days ?? [];
-    final fromTime = sched?.fromTime;
-    final toTime = sched?.toTime;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primaryBlue.withValues(alpha: 0.05),
-        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Session Schedule',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primaryBlue,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: List.generate(7, (i) {
-              final selected = days.contains(i);
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      final updated = List<int>.from(days);
-                      selected ? updated.remove(i) : updated.add(i);
-                      updated.sort();
-                      _therapistSchedules[target] = _ScheduleEntry(
-                        days: updated,
-                        fromTime: fromTime ?? '09:00',
-                        toTime: toTime ?? '10:00',
-                      );
-                    });
-                  },
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: selected
-                          ? AppColors.primaryBlue
-                          : AppColors.background,
-                      border: Border.all(
-                        color: selected
-                            ? AppColors.primaryBlue
-                            : AppColors.divider,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _dayLabels[i],
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: selected
-                              ? Colors.white
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-          if (days.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _TimePickerButton(
-                    label: 'From',
-                    time: fromTime,
-                    onPicked: (t) => setState(() {
-                      _therapistSchedules[target] = _ScheduleEntry(
-                        days: days,
-                        fromTime: t,
-                        toTime: toTime ?? '10:00',
-                      );
-                    }),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _TimePickerButton(
-                    label: 'To',
-                    time: toTime,
-                    onPicked: (t) => setState(() {
-                      _therapistSchedules[target] = _ScheduleEntry(
-                        days: days,
-                        fromTime: fromTime ?? '09:00',
-                        toTime: t,
-                      );
-                    }),
-                  ),
-                ),
-              ],
-            ),
-            if (fromTime != null && toTime != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                '${days.map((d) => _dayFullNames[d]).join(', ')}  •  $fromTime – $toTime',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.primaryBlue,
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
 
   int _ageYears(DateTime dob) {
     final now = DateTime.now();
@@ -1414,117 +1298,5 @@ class _EnrollmentWizardScreenState
     int months = now.month - dob.month;
     if (months < 0) months += 12;
     return months;
-  }
-}
-
-// ── Schedule entry ────────────────────────────────────────────────────────────
-class _ScheduleEntry {
-  final List<int> days;
-  final String fromTime;
-  final String toTime;
-  const _ScheduleEntry({
-    required this.days,
-    required this.fromTime,
-    required this.toTime,
-  });
-}
-
-// ── Time picker button ────────────────────────────────────────────────────────
-class _TimePickerButton extends StatelessWidget {
-  final String label;
-  final String? time;
-  final void Function(String) onPicked;
-  const _TimePickerButton({
-    required this.label,
-    required this.time,
-    required this.onPicked,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        final parts = time?.split(':');
-        final initial = parts != null
-            ? TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]))
-            : TimeOfDay.now();
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: initial,
-        );
-        if (picked != null) {
-          onPicked(
-            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
-          );
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          border: Border.all(color: AppColors.divider),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.access_time,
-              size: 16,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              time != null ? '$label: $time' : label,
-              style: TextStyle(
-                fontSize: 13,
-                color: time != null
-                    ? AppColors.textPrimary
-                    : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Step dot widget ──────────────────────────────────────────────────────────
-class _StepDot extends StatelessWidget {
-  final int index;
-  final bool done;
-  final bool current;
-  const _StepDot({
-    required this.index,
-    required this.done,
-    required this.current,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: done || current ? AppColors.primaryBlue : AppColors.background,
-        border: Border.all(
-          color: done || current ? AppColors.primaryBlue : AppColors.divider,
-          width: 1.5,
-        ),
-      ),
-      child: Center(
-        child: done
-            ? const Icon(Icons.check, color: Colors.white, size: 14)
-            : Text(
-                '$index',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: current ? Colors.white : AppColors.textSecondary,
-                ),
-              ),
-      ),
-    );
   }
 }

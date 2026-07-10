@@ -7,14 +7,10 @@ import 'package:naivisense/data/models/child.dart';
 import 'package:naivisense/shared/widgets/app_button.dart';
 import 'package:naivisense/shared/widgets/app_card.dart';
 
-
 class RaiseAlertCard extends ConsumerWidget {
   final ChildModel child;
 
-  const RaiseAlertCard({
-    super.key,
-    required this.child,
-  });
+  const RaiseAlertCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,11 +26,7 @@ class RaiseAlertCard extends ConsumerWidget {
               Icon(
                 Icons.report_problem_outlined,
                 color: AppColors.softCoral,
-                size: r.icon(
-                  22,
-                  tablet: 24,
-                  desktop: 26,
-                ),
+                size: r.icon(22, tablet: 24, desktop: 26),
               ),
 
               r.gapW(8),
@@ -45,11 +37,7 @@ class RaiseAlertCard extends ConsumerWidget {
                   style: TextStyle(
                     color: AppColors.softCoral,
                     fontWeight: FontWeight.w600,
-                    fontSize: r.sp(
-                      17,
-                      tablet: 18,
-                      desktop: 20,
-                    ),
+                    fontSize: r.sp(17, tablet: 18, desktop: 20),
                   ),
                 ),
               ),
@@ -62,11 +50,7 @@ class RaiseAlertCard extends ConsumerWidget {
             'Let your therapist know about fever, regression, behavioral changes, or any health concern.',
             style: TextStyle(
               color: AppColors.textSecondary,
-              fontSize: r.sp(
-                14,
-                tablet: 15,
-                desktop: 16,
-              ),
+              fontSize: r.sp(14, tablet: 15, desktop: 16),
             ),
           ),
 
@@ -76,10 +60,8 @@ class RaiseAlertCard extends ConsumerWidget {
             label: 'Raise Alert',
             outlined: true,
             icon: Icons.add_alert_outlined,
-            onPressed: () => context.push(
-              '/parent/child/${child.id}/alert',
-              extra: child,
-            ),
+            onPressed: () =>
+                context.push('/parent/child/${child.id}/alert', extra: child),
           ),
         ],
       ),

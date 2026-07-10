@@ -126,9 +126,6 @@ class ParentHomeScreen extends ConsumerWidget {
                               sw.ErrorWidget(message: e.toString()),
 
                           data: (list) {
-                            debugPrint("Children count: ${list.length}");
-                            debugPrint(list.toString());
-
                             if (list.isEmpty) {
                               return const sw.EmptyWidget(
                                 message: "No children registered yet",
@@ -155,10 +152,10 @@ class ParentHomeScreen extends ConsumerWidget {
                                     mainAxisSpacing: responsive.h(16),
 
                                     childAspectRatio: responsive.isMobile
-                                        ? 1.18
-                                        : responsive.isTablet
                                         ? 0.95
-                                        : 0.88,
+                                        : responsive.isTablet
+                                        ? 0.85
+                                        : 0.80,
                                   ),
 
                               itemBuilder: (context, index) {

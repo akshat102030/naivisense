@@ -41,7 +41,18 @@ class SessionsRepository {
     String sessionId,
     Map<String, dynamic> payload,
   ) async {
-    throw UnimplementedError('Edit session API is not implemented yet.');
+    try {
+      print('Updating session $sessionId with payload: $payload');
+      final res = await _api.patch(
+        '/session-timings/$sessionId',
+        data: payload,
+      );
+      print('Update session response: ${res.data}');
+
+      return SessionModel.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
   }
 
   Future<SessionModel> createSession(Map<String, dynamic> data) async {

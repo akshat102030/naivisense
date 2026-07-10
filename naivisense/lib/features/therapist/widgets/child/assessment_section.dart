@@ -9,7 +9,6 @@ import 'package:naivisense/features/therapist/widgets/child/assessment_history_r
 import 'package:naivisense/features/therapist/widgets/child/assessment_type_button.dart';
 import 'package:naivisense/features/therapist/widgets/child/section_title.dart';
 
-
 class AssessmentSection extends ConsumerWidget {
   final ChildModel child;
   final AsyncValue<dynamic> assessments;
@@ -21,6 +20,8 @@ class AssessmentSection extends ConsumerWidget {
   });
 
   void _startAssessment(BuildContext context, String type) {
+    print("STEP 1: Start Assessment");
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -113,5 +114,4 @@ class AssessmentSection extends ConsumerWidget {
       ),
     );
   }
-  
 }

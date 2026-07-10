@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:naivisense/core/utils/responsive.dart';
+import 'package:naivisense/features/parent/widget/alert_type_grid.dart';
+import 'package:naivisense/features/parent/widget/info_banner.dart';
+import 'package:naivisense/features/parent/widget/section_label.dart';
+import 'package:naivisense/features/parent/widget/severity_selector.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/child.dart';
 import '../providers/parent_provider.dart';
@@ -75,25 +80,17 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ui = Responsive(context);
     final alertState = ref.watch(alertProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Responsive breakpoints
-        final isMobile = constraints.maxWidth < 600;
+        final isMobile = ui.isMobile;
+        final isDesktop = ui.isDesktop;
 
-        final isTablet =
-            constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
-
-        final isDesktop = constraints.maxWidth >= 1024;
-
-        // Responsive values
-        final horizontalPadding = isMobile ? 20.0 : 28.0;
-
-        final buttonHeight = isMobile ? 52.0 : 56.0;
-
-        final sectionSpacing = isMobile ? 24.0 : 28.0;
-
+        final horizontalPadding = ui.horizontalPadding;
+        final buttonHeight = ui.sh(isMobile ? 52 : 56);
+        final sectionSpacing = ui.sectionSpacing;
         final formMaxWidth = isDesktop ? 600.0 : 700.0;
 
         Widget body = Form(
@@ -107,29 +104,45 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoBanner(isMobile),
+                    InfoBanner(childName: widget.child.name),
 
                     SizedBox(height: sectionSpacing),
 
-                    _sectionLabel(context, 'Alert Type'),
+                    SectionLabel(text: 'Alert Type'),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: ui.sh(12)),
 
-                    _buildAlertTypeGrid(),
+                    AlertTypeGrid(
+                      alertTypes: _alertTypes,
+                      selectedAlertType: _alertType,
+                      onChanged: (value) {
+                        setState(() {
+                          _alertType = value;
+                        });
+                      },
+                    ),
 
                     SizedBox(height: sectionSpacing),
 
-                    _sectionLabel(context, 'Severity Level'),
+                    SectionLabel(text: 'Severity Level'),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: ui.sh(12)),
 
-                    _buildSeverityRow(),
+                    SeveritySelector(
+                      severities: _severities,
+                      selectedSeverity: _severity,
+                      onChanged: (value) {
+                        setState(() {
+                          _severity = value;
+                        });
+                      },
+                    ),
 
                     SizedBox(height: sectionSpacing),
 
-                    _sectionLabel(context, 'Description'),
+                    SectionLabel(text: 'Description'),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: ui.sh(12)),
 
                     TextFormField(
                       controller: _descCtr,
@@ -140,31 +153,26 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
                         hintText:
                             'Describe what happened, when it started, '
                             'any patterns you noticed…',
-
                         hintStyle: TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: isMobile ? 14 : 15,
+                          fontSize: ui.ssp(isMobile ? 14 : 15),
                         ),
-
                         filled: true,
                         fillColor: AppColors.surface,
-
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(ui.sRadius(8)),
                           borderSide: const BorderSide(
                             color: AppColors.divider,
                           ),
                         ),
-
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(ui.sRadius(8)),
                           borderSide: const BorderSide(
                             color: AppColors.divider,
                           ),
                         ),
-
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(ui.sRadius(8)),
                           borderSide: const BorderSide(
                             color: AppColors.primaryBlue,
                             width: 2,
@@ -176,7 +184,7 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
                           : null,
                     ),
 
-                    const SizedBox(height: 32),
+                    SizedBox(height: ui.sh(32)),
 
                     SizedBox(
                       width: double.infinity,
@@ -187,15 +195,15 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
                           backgroundColor: AppColors.softCoral,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(ui.sRadius(8)),
                           ),
                           elevation: 0,
                         ),
                         child: alertState.loading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
+                            ? SizedBox(
+                                width: ui.sIcon(10),
+                                height: ui.sIcon(10),
+                                child: const CircularProgressIndicator(
                                   color: Colors.white,
                                   strokeWidth: 2.5,
                                 ),
@@ -205,15 +213,15 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
                                 children: [
                                   Icon(
                                     Icons.notification_important_outlined,
-                                    size: isMobile ? 20 : 22,
+                                    size: ui.sIcon(isMobile ? 6 : 8),
                                   ),
 
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: ui.sw(8)),
 
                                   Text(
                                     'Submit Alert',
                                     style: TextStyle(
-                                      fontSize: isMobile ? 16 : 17,
+                                      fontSize: ui.ssp(isMobile ? 16 : 17),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -228,11 +236,10 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
           ),
         );
 
-        // Center screen content on tablet/desktop
         if (!isMobile) {
           body = Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
+              constraints: BoxConstraints(maxWidth: ui.dialogWidth),
               child: body,
             ),
           );
@@ -240,223 +247,20 @@ class _RaiseAlertScreenState extends ConsumerState<RaiseAlertScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.background,
-
           resizeToAvoidBottomInset: true,
-
           appBar: AppBar(
             title: Text(
               'Raise Alert — ${widget.child.name}',
               overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: ui.ssp(18)),
             ),
             backgroundColor: AppColors.surface,
             elevation: 0,
             leading: BackButton(onPressed: () => context.pop()),
           ),
-
           body: SafeArea(child: body),
         );
       },
-    );
-  }
-
-  Widget _buildInfoBanner(bool isMobile) {
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 14 : 18),
-      decoration: BoxDecoration(
-        color: AppColors.primaryBlue.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: AppColors.primaryBlue,
-            size: isMobile ? 20 : 22,
-          ),
-
-          SizedBox(width: isMobile ? 10 : 12),
-
-          Expanded(
-            child: Text(
-              'Alerts are sent directly to ${widget.child.name}\'s therapy team. '
-              'For medical emergencies, please call emergency services immediately.',
-              style: TextStyle(
-                fontSize: isMobile ? 13 : 14,
-                color: AppColors.primaryBlue,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAlertTypeGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Responsive breakpoints
-        final isMobile = constraints.maxWidth < 600;
-        final isTablet =
-            constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
-
-        // Responsive grid columns
-        final crossAxisCount = isMobile
-            ? 2
-            : isTablet
-            ? 3
-            : 4;
-
-        final iconSize = isMobile ? 24.0 : 28.0;
-        final labelFontSize = isMobile ? 12.0 : 13.0;
-        final spacing = isMobile ? 10.0 : 12.0;
-        final childAspectRatio = isMobile ? 1.15 : 1.25;
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _alertTypes.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
-            childAspectRatio: childAspectRatio,
-          ),
-          itemBuilder: (context, index) {
-            final (val, icon, label) = _alertTypes[index];
-            final selected = _alertType == val;
-
-            return GestureDetector(
-              onTap: () => setState(() => _alertType = val),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.primaryBlue.withValues(alpha: 0.1)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: selected ? AppColors.primaryBlue : AppColors.divider,
-                    width: selected ? 2 : 1,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      icon,
-                      size: iconSize,
-                      color: selected
-                          ? AppColors.primaryBlue
-                          : AppColors.textSecondary,
-                    ),
-                    const SizedBox(height: 6),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: labelFontSize,
-                          fontWeight: FontWeight.w500,
-                          color: selected
-                              ? AppColors.primaryBlue
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildSeverityRow() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-
-        // Use Wrap instead of Row to avoid overflow
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _severities.map((s) {
-            final (val, label, color) = s;
-            final selected = _severity == val;
-
-            return SizedBox(
-              width: isMobile
-                  ? (constraints.maxWidth - 8) / 2
-                  : (constraints.maxWidth - 24) / 4,
-              child: GestureDetector(
-                onTap: () => setState(() => _severity = val),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: EdgeInsets.symmetric(
-                    vertical: isMobile ? 12 : 14,
-                    horizontal: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? color.withValues(alpha: 0.12)
-                        : AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected ? color : AppColors.divider,
-                      width: selected ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: isMobile ? 10 : 12,
-                        height: isMobile ? 10 : 12,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isMobile ? 11 : 12,
-                          fontWeight: FontWeight.w600,
-                          color: selected ? color : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _sectionLabel(BuildContext context, String text) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    final isMobile = screenWidth < 600;
-
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-        fontSize: isMobile ? 16 : 18,
-      ),
     );
   }
 }

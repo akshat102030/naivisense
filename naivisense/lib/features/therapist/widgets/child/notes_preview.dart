@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:naivisense/core/theme/app_colors.dart';
 import 'package:naivisense/core/utils/responsive.dart';
 import 'package:naivisense/data/models/session.dart';
-import 'package:naivisense/features/therapist/providers/therapist_provider.dart';
-import 'package:naivisense/features/therapist/screens/session_notes_screen.dart';
 import 'package:naivisense/features/therapist/widgets/child/note_tile.dart';
 import 'package:naivisense/features/therapist/widgets/child/score_chip.dart';
 import 'package:naivisense/features/therapist/widgets/child/section_heading.dart';
@@ -173,25 +170,29 @@ class _NotesPreviewState extends State<NotesPreview> {
                       color: AppColors.primaryBlue.withValues(alpha: .18),
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.check_circle_outline,
-                        size: responsive.icon(15),
-                        color: AppColors.primaryBlue,
-                      ),
-
-                      responsive.gapW(6),
-
-                      Text(
-                        activity,
-                        style: TextStyle(
-                          fontSize: responsive.sp(13),
-                          fontWeight: FontWeight.w500,
+                  child: IntrinsicWidth(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: responsive.icon(15),
+                          color: AppColors.primaryBlue,
                         ),
-                      ),
-                    ],
+                        responsive.gapW(6),
+                        Flexible(
+                          child: Text(
+                            activity,
+                            softWrap: true,
+                            overflow: TextOverflow.visible,
+                            style: TextStyle(
+                              fontSize: responsive.sp(13),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }).toList(),

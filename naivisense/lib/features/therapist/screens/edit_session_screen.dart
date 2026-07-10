@@ -71,18 +71,59 @@ class _EditSessionScreenState extends ConsumerState<EditSessionScreen> {
   static const _durations = [15, 30, 45, 60, 90];
 
   Future<void> _pickDate() async {
+    final now = DateTime.now();
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      initialDate: _date.isBefore(now) ? now : _date,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 90)),
     );
-    if (picked != null) setState(() => _date = picked);
+
+    if (picked == null) return;
+
+    setState(() {
+      _date = picked;
+
+      final selected = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        _time.hour,
+        _time.minute,
+      );
+
+      if (selected.isBefore(now)) {
+        _time = TimeOfDay.fromDateTime(now.add(const Duration(minutes: 1)));
+      }
+    });
   }
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(context: context, initialTime: _time);
-    if (picked != null) setState(() => _time = picked);
+
+    if (picked == null) return;
+
+    final now = DateTime.now();
+
+    final selectedDateTime = DateTime(
+      _date.year,
+      _date.month,
+      _date.day,
+      picked.hour,
+      picked.minute,
+    );
+
+    if (selectedDateTime.isBefore(now)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please select a future time.")),
+        );
+      }
+      return;
+    }
+
+    setState(() => _time = picked);
   }
 
   DateTime get _scheduledAt {
