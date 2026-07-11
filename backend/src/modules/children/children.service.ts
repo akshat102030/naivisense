@@ -33,7 +33,9 @@ export async function getChild(id: string, user: AuthPayload) {
 export async function createChild(input: CreateChildInput, user: AuthPayload) {
   if (user.role !== 'center_head') {
     throw new AppError('FORBIDDEN', 'Only center head can register children');
-  }
+   }
+  
+  // Aligned directly with the new array input schema format
   return ChildModel.create({
     ...input,
     dob:            new Date(input.dob),
