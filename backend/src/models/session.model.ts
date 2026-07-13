@@ -1,23 +1,58 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISessionNotes {
-  mood:                string;
-  attention_score:     number;
-  communication_score: number;
-  motor_score:         number;
-  behavior_score:      number;
-  activities:          string[];
-  what_worked?:        string;
-  what_didnt_work?:    string;
-  homework?:           string;
-  notes?:              string;
-  // Extended therapist observation fields
-  observations?:       string;
-  progress_log?:       string;
-  tantrums_observed?:  string;
-  resolution_notes?:   string;
-  follow_up_required:  boolean;
-  submitted_at:        Date;
+
+  mood?: 
+    | "sad"
+    | "calm"
+    | "happy"
+    | "excited";
+
+
+  attention_score?: number;
+
+
+  communication_score?: number;
+
+
+  motor_score?: number;
+
+
+  behavior_score?: number;
+
+
+  activities?: string[];
+
+
+  what_worked?: string;
+
+
+  what_didnt_work?: string;
+
+
+  homework?: string;
+
+
+  notes?: string;
+
+
+  observations?: string;
+
+
+  progress_log?: string;
+
+
+  tantrums_observed?: string;
+
+
+  resolution_notes?: string;
+
+
+  follow_up_required?: boolean;
+
+
+  submitted_at: Date;
+
 }
 
 export interface ISession extends Document {

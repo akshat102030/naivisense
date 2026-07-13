@@ -140,7 +140,7 @@ export async function updateSession(
 
     });
 
-    // -------- SEND MAIL TO PARENT --------
+    //Mail
 
     if (parent?.email) {
 

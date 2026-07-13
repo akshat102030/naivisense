@@ -223,19 +223,23 @@ export async function enrollCenterHead(input: EnrollCenterHeadInput) {
   );
 
   const profile = await CenterProfileModel.create({
+
     user_id: user._id,
 
     center_name: input.center_name,
 
-    smtp_host: input.smtp_credentials.smtp_host,
+    smtp_credentials: {
+      smtp_host: input.smtp_credentials.smtp_host,
 
-    smtp_port: input.smtp_credentials.smtp_port,
+      smtp_port: input.smtp_credentials.smtp_port,
 
-    smtp_secure: input.smtp_credentials.smtp_secure,
+      smtp_secure: input.smtp_credentials.smtp_secure,
 
-    smtp_user: input.smtp_credentials.smtp_user,
+      smtp_user: input.smtp_credentials.smtp_user,
 
-    smtp_password: encryptedPassword,
+      smtp_password: encryptedPassword,
+    }
+
   });
 
   return { user, profile };

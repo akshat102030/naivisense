@@ -27,6 +27,8 @@ import aiRoutes          from './modules/ai/ai.routes';
 import chatbotRoutes     from './modules/chatbot/chatbot.routes';
 import paymentsRoutes    from './modules/payments/payments.routes';
 import settingsRoutes    from './modules/settings/settings.routes';
+import sessionNotesRoutes from "./modules/session-notes/session-notes.routes";
+
 
 const app = express();
 
@@ -97,6 +99,10 @@ app.use(`${api}/ai`,           aiRoutes);
 app.use(`${api}/chatbot`,      chatbotRoutes);
 app.use(`${api}/payments`,     paymentsRoutes);
 app.use(`${api}/settings`,     settingsRoutes);
+app.use(
+ "/api/v1/sessions",
+ sessionNotesRoutes
+);
 
 app.use(errorHandler);
 
