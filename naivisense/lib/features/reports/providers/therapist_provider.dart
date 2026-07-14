@@ -1,5 +1,6 @@
 // ── Edit Session ─────────────────────────────────────────────────────────
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:naivisense/data/repositories/sessions_repository.dart';
 import 'package:naivisense/features/therapist/providers/therapist_provider.dart';
@@ -32,13 +33,23 @@ class EditSessionNotifier extends Notifier<EditSessionState> {
     state = state.copyWith(loading: true, error: null);
 
     try {
-      // Temporary until backend API is implemented
+      debugPrint('Session ID: $sessionId');
+      debugPrint('Payload: $payload');
+
       await ref
           .read(sessionsRepositoryProvider)
           .updateSession(sessionId, payload);
 
-      // Refresh therapist home
+      // Refresh all session-related providers
       ref.invalidate(therapistSessionsProvider);
+      ref.invalidate(therapistChildrenProvider);
+
+      // Refresh the edited child's data
+      final childId = payload['child_id'] as String?;
+      if (childId != null) {
+        ref.invalidate(therapistChildSessionsProvider(childId));
+        ref.invalidate(therapistChildNextSessionProvider(childId));
+      }
 
       state = state.copyWith(loading: false, success: true);
 

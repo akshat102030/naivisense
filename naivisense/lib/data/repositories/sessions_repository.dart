@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../services/error_handler_service.dart';
@@ -42,10 +43,7 @@ class SessionsRepository {
     Map<String, dynamic> payload,
   ) async {
     try {
-      final res = await _api.patch(
-        '/session-timings/$sessionId',
-        data: payload,
-      );
+      final res = await _api.patch('/sessions/$sessionId', data: payload);
 
       return SessionModel.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {

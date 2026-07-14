@@ -28,9 +28,12 @@ class AddSessionButton extends ConsumerWidget {
           );
 
           if (created == true && context.mounted) {
-            ref.invalidate(therapistChildSessionsProvider(child.id));
-            ref.invalidate(therapistChildNextSessionProvider(child.id));
-
+            await ref.refresh(therapistChildSessionsProvider(child.id).future);
+            await ref.refresh(
+              therapistChildNextSessionProvider(child.id).future,
+            );
+            ref.invalidate(therapistSessionsProvider);
+            ref.invalidate(therapistChildrenProvider);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Session scheduled successfully')),
             );

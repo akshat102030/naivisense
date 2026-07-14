@@ -41,8 +41,10 @@ class _EditSessionScreenState extends ConsumerState<EditSessionScreen> {
     _mode = widget.session.mode;
     _durationMin = widget.session.durationMin;
 
-    _date = widget.session.scheduledAt;
-    _time = TimeOfDay.fromDateTime(widget.session.scheduledAt);
+    final localDateTime = widget.session.scheduledAt.toLocal();
+
+    _date = localDateTime;
+    _time = TimeOfDay.fromDateTime(localDateTime);
   }
 
   static const _sessionTypes = [
@@ -136,26 +138,64 @@ class _EditSessionScreenState extends ConsumerState<EditSessionScreen> {
     );
   }
 
+  bool get _dateTimeChanged {
+    final original = widget.session.scheduledAt.toLocal();
+
+    return _date.year != original.year ||
+        _date.month != original.month ||
+        _date.day != original.day ||
+        _time.hour != original.hour ||
+        _time.minute != original.minute;
+  }
+
+  bool get _hasChanges {
+    return _type != widget.session.type ||
+        _mode != widget.session.mode ||
+        _durationMin != widget.session.durationMin ||
+        _dateTimeChanged;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final payload = {
-      'child_id': _childId,
-      'type': _type,
-      'mode': _mode,
-      'duration_min': _durationMin,
-      'scheduled_at': _scheduledAt.toUtc().toIso8601String(),
-    };
-    if (_scheduledAt.isBefore(DateTime.now())) {
+    if (!_hasChanges) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No changes to update.')));
+      return;
+    }
+
+    // Validate only if date/time was changed
+    if (_dateTimeChanged && _scheduledAt.isBefore(DateTime.now())) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a future date and time.')),
       );
       return;
     }
 
+    debugPrint("Original: ${widget.session.scheduledAt.toIso8601String()}");
+    debugPrint("Sending : ${_scheduledAt.toUtc().toIso8601String()}");
+
+    final localDateTime = DateTime(
+      _date.year,
+      _date.month,
+      _date.day,
+      _time.hour,
+      _time.minute,
+    );
+
+    final payload = {
+      'child_id': _childId,
+      'type': _type,
+      'mode': _mode,
+      'duration_min': _durationMin,
+      'scheduled_at': localDateTime.toUtc().toIso8601String(),
+    };
+
     final ok = await ref
         .read(editSessionProvider.notifier)
         .update(widget.session.id, payload);
+
     if (ok && mounted) {
       Navigator.pop(context, true);
     }
@@ -306,7 +346,9 @@ class _EditSessionScreenState extends ConsumerState<EditSessionScreen> {
                   child: AppButton(
                     label: "Update Session",
                     loading: state.loading,
-                    onPressed: _submit,
+                    onPressed: state.loading
+                        ? null
+                        : (_hasChanges ? _submit : null),
                     icon: Icons.edit_calendar_outlined,
                   ),
                 ),

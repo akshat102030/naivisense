@@ -6,7 +6,6 @@ import 'package:naivisense/features/therapist/widgets/child/active_plan_card.dar
 import 'package:naivisense/features/therapist/widgets/child/add_session_button.dart';
 import 'package:naivisense/features/therapist/widgets/child/assessment_section.dart';
 import 'package:naivisense/features/therapist/widgets/child/child_profile_app_bar.dart';
-import 'package:naivisense/features/therapist/widgets/child/diagnosis_section.dart';
 import 'package:naivisense/features/therapist/widgets/child/diet_plan_section.dart';
 import 'package:naivisense/features/therapist/widgets/child/goals_section.dart';
 import 'package:naivisense/features/therapist/widgets/child/next_session_card.dart';
@@ -114,15 +113,11 @@ class TherapistChildProfileScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         r.gapH(18),
-
         // DiagnosisChips(child: child),
-
         // r.gapH(8),
         if (r.isMobile) ...[
           NextSessionCard(nextSession: nextSession),
-
           r.gapH(8),
-
           QuickStatsSection(sessions: sessions),
         ] else ...[
           Row(
@@ -135,9 +130,7 @@ class TherapistChildProfileScreen extends ConsumerWidget {
                   child: NextSessionCard(nextSession: nextSession),
                 ),
               ),
-
               r.gapW(16),
-
               Expanded(
                 flex: 2,
                 child: SizedBox(
@@ -148,47 +141,26 @@ class TherapistChildProfileScreen extends ConsumerWidget {
             ],
           ),
         ],
-
         r.gapH(8),
-
         AssessmentSection(child: child, assessments: assessments),
-
         r.gapH(8),
-
         AddSessionButton(child: child),
-
         r.gapH(8),
-
         ProgressChartsSection(child: child, sessions: sessions),
-
         r.gapH(8),
-
         ActivePlanCard(plan: plan),
-
         r.gapH(8),
-
         DietPlanSection(plan: dietPlan),
-
         r.gapH(8),
-
         GoalsSection(goals: goals),
-
         r.gapH(8),
-
         ReviewsSection(reviews: reviews),
-
         r.gapH(8),
-
         VideosSection(videos: videos),
-
         r.gapH(8),
-
         AiDraftsSection(child: child, aiDrafts: aiDrafts),
-
         r.gapH(8),
-
         SessionHistorySection(child: child, sessions: sessions),
-
         r.gapH(4),
       ],
     );

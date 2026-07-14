@@ -47,6 +47,11 @@ class TodaySessions extends ConsumerWidget {
               return d.year == n.year && d.month == n.month && d.day == n.day;
             }).toList();
             today.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+            for (final s in list) {
+              debugPrint("Stored: ${s.scheduledAt}");
+              debugPrint("Local : ${s.scheduledAt.toLocal()}");
+              debugPrint("Now   : ${DateTime.now()}");
+            }
 
             if (today.isEmpty) {
               return const sw.EmptyWidget(
@@ -78,8 +83,7 @@ class TodaySessions extends ConsumerWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            EditSessionScreen(session: s),
+                        builder: (_) => EditSessionScreen(session: s),
                       ),
                     );
                   },
