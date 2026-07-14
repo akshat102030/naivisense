@@ -1,7 +1,7 @@
 import { SessionModel }           from '../../models/session.model';
 import { ChildModel }             from '../../models/child.model';
 import { UserModel }              from '../../models/user.model';
-import { CenterProfileModel }     from '../../models/center.profile.model'; // Added for geofencing coordinates
+import { CenterProfileModel }     from '../../models/center-profile.model'; // Added for geofencing coordinates
 import { AppError }               from '../../middleware/error';
 import type { AuthPayload }       from '../../middleware/auth';
 import { snapshotQueue }          from '../../jobs/queues';
@@ -37,6 +37,7 @@ export async function createSession(input: CreateSessionInput, user: AuthPayload
 
     const calendar = await syncCalendarEvent({
       sessionId:      session._id.toString(),
+      centerId:       child.center_id!.toString(),
       scheduledAt:    session.scheduled_at,
       durationMin:    session.duration_min,
       childName:      child.name,
@@ -120,6 +121,7 @@ export async function updateSession(
     await updateCalendarEvent({
 
       eventId: session.calendar_event_id,
+      centerId:  child.center_id!.toString(),
 
       scheduledAt: session.scheduled_at,
 
@@ -164,7 +166,7 @@ export async function updateSession(
   return session;
 }
 
-export async function cancelSession(
+async function cancelSession(
   sessionId: string,
   user: AuthPayload
 ) {
@@ -195,7 +197,7 @@ export async function cancelSession(
     session.mode === "online" &&
     session.calendar_event_id
   ) {
-    await deleteCalendarEvent(session.calendar_event_id);
+    await deleteCalendarEvent(session.calendar_event_id, user.sub);
   }
 
   session.status = "cancelled";
@@ -208,7 +210,7 @@ export async function cancelSession(
   return session;
 }
 
-export async function submitNotes(sessionId: string, notes: SubmitNotesInput, user: AuthPayload) {
+ async function submitNotes(sessionId: string, notes: SubmitNotesInput, user: AuthPayload) {
   if (user.role !== 'therapist') {
     throw new AppError('FORBIDDEN', 'Only therapists can submit session notes');
   }
@@ -218,7 +220,7 @@ export async function submitNotes(sessionId: string, notes: SubmitNotesInput, us
     throw new AppError('FORBIDDEN', 'This is not your session');
   }
 
-  session.notes  = notes as never;
+  session.notes = { ...notes, submitted_at: new Date() };
   session.status = 'completed';
   await session.save();
 
@@ -227,7 +229,7 @@ export async function submitNotes(sessionId: string, notes: SubmitNotesInput, us
   return session;
 }
 
-export async function getUpcomingSessions(user: AuthPayload) {
+async function getUpcomingSessions(user: AuthPayload) {
   const now    = new Date();
   const filter =
     user.role === 'therapist'
@@ -237,7 +239,7 @@ export async function getUpcomingSessions(user: AuthPayload) {
   return SessionModel.find(filter).sort({ scheduled_at: 1 }).limit(20).lean();
 }
 
-export async function listSessions(childId: string, user: AuthPayload) {
+async function listSessions(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
   if (!child) throw new AppError('NOT_FOUND', 'Child not found');
 
@@ -251,7 +253,7 @@ export async function listSessions(childId: string, user: AuthPayload) {
   return SessionModel.find({ child_id: childId }).sort({ scheduled_at: -1 }).lean();
 }
 
-export async function getNextSession(childId: string, user: AuthPayload) {
+async function getNextSession(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
   if (!child) throw new AppError('NOT_FOUND', 'Child not found');
 
@@ -276,7 +278,7 @@ export async function getNextSession(childId: string, user: AuthPayload) {
 
 //  NEW CHANGES: GEOFENCE ATTENDANCE CORE BUSINESS LOGIC
 
-export async function markGeofenceAttendance(input: GeofenceAttendanceInput, user: AuthPayload) {
+async function markGeofenceAttendance(input: GeofenceAttendanceInput, user: AuthPayload) {
   // 1. Role validation check (sirf parents hi bache ki attendance mark kar sakte hain)
   if (user.role !== 'parent') {
     throw new AppError('FORBIDDEN', 'Only parents can mark attendance via geofencing');
@@ -284,7 +286,7 @@ export async function markGeofenceAttendance(input: GeofenceAttendanceInput, use
 
   // 2. Fetch center's coordinates
   const center = await CenterProfileModel.findOne({ user_id: input.center_id }).lean();
-  if (!center || center.latitude === undefined || center.longitude === undefined) {
+  if (!center || (center as any).latitude === undefined || (center as any).longitude === undefined) {
     throw new AppError('BAD_REQUEST', 'Center location settings are not configured yet.');
   }
 
@@ -292,11 +294,11 @@ export async function markGeofenceAttendance(input: GeofenceAttendanceInput, use
   const distance = getDistanceInMeters(
     input.user_latitude,
     input.user_longitude,
-    center.latitude,
-    center.longitude
+    (center as any).latitude,
+    (center as any).longitude
   );
 
-  const allowedRadius = center.radius_meters || 50;
+  const allowedRadius = (center as any).radius_meters || 50;
   if (distance > allowedRadius) {
     throw new AppError(
       'BAD_REQUEST', 
@@ -335,4 +337,5 @@ export async function markGeofenceAttendance(input: GeofenceAttendanceInput, use
   await snapshotQueue.add('rebuild', { childId: activeSession.child_id.toString() });
 
   return activeSession;
+}
 }
