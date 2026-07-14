@@ -4,6 +4,8 @@ import { requireRole }  from '../../middleware/role';
 import * as Ctrl        from './sessions.controller';
 
 const router = Router();
+
+//authentication for every route in this router
 router.use(requireAuth);
 
 router.post('/',              requireRole('therapist'), Ctrl.create);
@@ -20,6 +22,16 @@ router.delete(
   "/:id",
   requireRole("therapist"),
   Ctrl.cancel
+);
+
+
+//  NEW CHANGES: GEOFENCE ATTENDANCE ROUTE
+
+// only authenticated parents can send request to this route
+router.post(
+  '/geofence-attendance',
+  requireRole('parent'),
+  Ctrl.handleGeofenceAttendance
 );
 
 export default router;

@@ -1,13 +1,14 @@
 import { SessionModel }           from '../../models/session.model';
 import { ChildModel }             from '../../models/child.model';
 import { UserModel }              from '../../models/user.model';
+import { CenterProfileModel }     from '../../models/center.profile.model'; // Added for geofencing coordinates
 import { AppError }               from '../../middleware/error';
 import type { AuthPayload }       from '../../middleware/auth';
 import { snapshotQueue }          from '../../jobs/queues';
 import { syncCalendarEvent, updateCalendarEvent, deleteCalendarEvent }      from '../google/google.service';
-import type { CreateSessionInput, SubmitNotesInput, UpdateSessionInput } from './sessions.schema';
+import type { CreateSessionInput, SubmitNotesInput, UpdateSessionInput, GeofenceAttendanceInput } from './sessions.schema';
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
-
+import { getDistanceInMeters }    from '../../utils/distance'; // Added distance utility
 
 export async function createSession(input: CreateSessionInput, user: AuthPayload) {
   if (user.role !== 'therapist') {
@@ -54,15 +55,10 @@ export async function createSession(input: CreateSessionInput, user: AuthPayload
 }
 
 export async function updateSession(
-
   sessionId: string,
-
   input: UpdateSessionInput,
-
   user: AuthPayload,
-
 ) {
-
   if (user.role !== "therapist") {
     throw new AppError(
       "FORBIDDEN",
@@ -105,68 +101,40 @@ export async function updateSession(
   await session.save();
 
   if (
-  session.mode === "online" &&
-  session.calendar_event_id
-) {
+    session.mode === "online" &&
+    session.calendar_event_id
+  ) {
+    const child = await ChildModel.findById(session.child_id);
 
-  const child = await ChildModel.findById(session.child_id);
+    if (child) {
+      const [parent, therapist] = await Promise.all([
+        UserModel.findById(child.parent_id),
+        UserModel.findById(user.sub),
+      ]);
 
-  if (child) {
+      await updateCalendarEvent({
+        eventId: session.calendar_event_id,
+        scheduledAt: session.scheduled_at,
+        durationMin: session.duration_min,
+        childName: child.name,
+        parentEmail: child.parent_email ?? parent?.email,
+        therapistEmail: therapist?.email,
+      });
 
-    const [parent, therapist] = await Promise.all([
-
-      UserModel.findById(child.parent_id),
-
-      UserModel.findById(user.sub),
-
-    ]);
-
-    await updateCalendarEvent({
-
-      eventId: session.calendar_event_id,
-
-      scheduledAt: session.scheduled_at,
-
-      durationMin: session.duration_min,
-
-      childName: child.name,
-
-      parentEmail:
-        child.parent_email ??
-        parent?.email,
-
-      therapistEmail:
-        therapist?.email,
-
-    });
-
-    // -------- SEND MAIL TO PARENT --------
-
-    if (parent?.email) {
-
-      await sendSessionRescheduledMailToParent(
-
-        child.center_id!.toString(),   // sender SMTP owner
-
-        parent.email,
-
-        parent.name,
-
-        child.name,
-
-        therapist?.name ?? "Therapist",
-
-        session.scheduled_at,
-
-        session.meeting_link
-
-      );
-
+      // -------- SEND MAIL TO PARENT --------
+      if (parent?.email) {
+        await sendSessionRescheduledMailToParent(
+          child.center_id!.toString(),   // sender SMTP owner
+          parent.email,
+          parent.name,
+          child.name,
+          therapist?.name ?? "Therapist",
+          session.scheduled_at,
+          session.meeting_link
+        );
+      }
     }
-
   }
-
-}
 
   return session;
 }
@@ -175,7 +143,6 @@ export async function cancelSession(
   sessionId: string,
   user: AuthPayload
 ) {
-
   if (user.role !== "therapist") {
     throw new AppError(
       "FORBIDDEN",
@@ -183,8 +150,7 @@ export async function cancelSession(
     );
   }
 
-  const session =
-    await SessionModel.findById(sessionId);
+  const session = await SessionModel.findById(sessionId);
 
   if (!session) {
     throw new AppError(
@@ -193,9 +159,7 @@ export async function cancelSession(
     );
   }
 
-  if (
-    session.therapist_id.toString() !== user.sub
-  ) {
+  if (session.therapist_id.toString() !== user.sub) {
     throw new AppError(
       "FORBIDDEN",
       "This is not your session"
@@ -206,27 +170,17 @@ export async function cancelSession(
     session.mode === "online" &&
     session.calendar_event_id
   ) {
-
-    await deleteCalendarEvent(
-      session.calendar_event_id
-    );
-
+    await deleteCalendarEvent(session.calendar_event_id);
   }
 
   session.status = "cancelled";
-
   session.meeting_link = undefined;
-
   session.calendar_event_id = undefined;
-
   session.calendar_provider = undefined;
-
   session.calendar_synced_at = undefined;
 
   await session.save();
-
   return session;
-
 }
 
 export async function submitNotes(sessionId: string, notes: SubmitNotesInput, user: AuthPayload) {
@@ -292,4 +246,68 @@ export async function getNextSession(childId: string, user: AuthPayload) {
   }).sort({ scheduled_at: 1 }).lean();
 
   return next ?? null;
+}
+
+
+//  NEW CHANGES: GEOFENCE ATTENDANCE CORE BUSINESS LOGIC
+
+export async function markGeofenceAttendance(input: GeofenceAttendanceInput, user: AuthPayload) {
+  // 1. Role validation check (sirf parents hi bache ki attendance mark kar sakte hain)
+  if (user.role !== 'parent') {
+    throw new AppError('FORBIDDEN', 'Only parents can mark attendance via geofencing');
+  }
+
+  // 2. Fetch center's coordinates
+  const center = await CenterProfileModel.findOne({ user_id: input.center_id }).lean();
+  if (!center || center.latitude === undefined || center.longitude === undefined) {
+    throw new AppError('BAD_REQUEST', 'Center location settings are not configured yet.');
+  }
+
+  // 3. Distance Check using Haversine Utility
+  const distance = getDistanceInMeters(
+    input.user_latitude,
+    input.user_longitude,
+    center.latitude,
+    center.longitude
+  );
+
+  const allowedRadius = center.radius_meters || 50;
+  if (distance > allowedRadius) {
+    throw new AppError(
+      'BAD_REQUEST', 
+      `You are outside the center perimeter. Distance: ${Math.round(distance)} meters away.`
+    );
+  }
+
+  // 4. Find Active Session within the Time Window (+/- 15 Mins)
+  const currentTime = new Date();
+  const fifteenMinsBefore = new Date(currentTime.getTime() - 15 * 60 * 1000);
+  const fifteenMinsAfter = new Date(currentTime.getTime() + 15 * 60 * 1000);
+
+  // Find a session scheduled for this child at this specific timing window
+  const activeSession = await SessionModel.findOne({
+    child_id: input.child_id,
+    mode: 'offline', // Offline maps to physical center attendance
+    status: 'scheduled',
+    scheduled_at: { $gte: fifteenMinsBefore, $lte: fifteenMinsAfter }
+  });
+
+  if (!activeSession) {
+    throw new AppError('NOT_FOUND', 'No offline session scheduled at this current time slot (+/- 15 mins window).');
+  }
+
+  // 5. Check if therapist has already completed or marked it (Double check boundary)
+  if (activeSession.status === 'completed') {
+    throw new AppError('BAD_REQUEST', 'Attendance has already been recorded for this session.');
+  }
+
+  // 6. Update Status & Attendance Source
+  activeSession.status = 'completed';
+  activeSession.attendance_source = 'geo';
+  await activeSession.save();
+
+  // 7. Trigger any background data rebuild if needed (copied style from submitNotes)
+  await snapshotQueue.add('rebuild', { childId: activeSession.child_id.toString() });
+
+  return activeSession;
 }
