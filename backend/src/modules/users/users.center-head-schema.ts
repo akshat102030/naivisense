@@ -31,6 +31,8 @@ export const EnrollCenterHeadSchema = z.object({
       .string()
       .min(8, "SMTP password must be at least 8 characters"),
   }),
+
+  
 });
 
 export type EnrollCenterHeadInput = z.infer<

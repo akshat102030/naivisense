@@ -9,6 +9,28 @@ export const create = asyncHandler(async (req, res) => {
   res.status(201).json(assessment);
 });
 
+export const updateLatest =
+asyncHandler(async(req,res)=>{
+
+
+const assessment =
+await AssessmentService.updateLatestAssessment(
+
+req.params.childId,
+
+CreateAssessmentSchema.parse(req.body),
+
+req.user!
+
+);
+
+
+
+res.json(assessment);
+
+
+});
+
 export const list = asyncHandler(async (req, res) => {
   const { childId } = req.query;
   if (!childId || typeof childId !== 'string') {

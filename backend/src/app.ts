@@ -13,22 +13,23 @@ import sessionsRoutes     from './modules/sessions/sessions.routes';
 import homePlansRoutes    from './modules/home-plans/home-plans.routes';
 import dietPlansRoutes    from './modules/diet-plans/diet-plans.routes';
 import verificationRoutes from './modules/verification/verification.routes';
-import sessionTimingsRoutes from './modules/session-timings/session-timings.routes';
-import alertsRoutes       from './modules/alerts/alerts.routes';
-import concernsRoutes     from './modules/concerns/concerns.routes';
-import goalsRoutes        from './modules/goals/goals.routes';
-import reviewsRoutes      from './modules/reviews/reviews.routes';
-import videosRoutes       from './modules/videos/videos.routes';
-import dietRequestsRoutes from './modules/diet-requests/diet-requests.routes';
-import attendanceRoutes   from './modules/attendance/attendance.routes';
-import notificationsRoutes from './modules/notifications/notifications.routes';
-import googleRoutes       from './modules/google/google.routes';
-import ragRoutes          from './modules/rag/rag.routes';
-import reportsRoutes      from './modules/reports/reports.routes';
-import aiRoutes           from './modules/ai/ai.routes';
-import chatbotRoutes      from './modules/chatbot/chatbot.routes';
-import paymentsRoutes     from './modules/payments/payments.routes';
-import settingsRoutes     from './modules/settings/settings.routes';
+import alertsRoutes      from './modules/alerts/alerts.routes';
+import concernsRoutes    from './modules/concerns/concerns.routes';
+import goalsRoutes       from './modules/goals/goals.routes';
+import reviewsRoutes     from './modules/reviews/reviews.routes';
+import videosRoutes      from './modules/videos/videos.routes';
+import dietRequestsRoutes    from './modules/diet-requests/diet-requests.routes';
+import attendanceRoutes      from './modules/attendance/attendance.routes';
+import notificationsRoutes   from './modules/notifications/notifications.routes';
+import googleRoutes          from './modules/google/google.routes';
+import ragRoutes             from './modules/rag/rag.routes';
+import reportsRoutes         from './modules/reports/reports.routes';
+import aiRoutes          from './modules/ai/ai.routes';
+import chatbotRoutes     from './modules/chatbot/chatbot.routes';
+import paymentsRoutes    from './modules/payments/payments.routes';
+import settingsRoutes    from './modules/settings/settings.routes';
+import sessionNotesRoutes from "./modules/session-notes/session-notes.routes";
+
 
 const app = express();
 app.set('trust proxy', 1);
@@ -100,7 +101,10 @@ app.use(`${api}/ai`,           aiRoutes);
 app.use(`${api}/chatbot`,      chatbotRoutes);
 app.use(`${api}/payments`,     paymentsRoutes);
 app.use(`${api}/settings`,     settingsRoutes);
-app.use(`${api}/session-timings`, sessionTimingsRoutes);
+app.use(
+ "/api/v1/sessions",
+ sessionNotesRoutes
+);
 
 app.use(errorHandler);
 

@@ -25,6 +25,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET:  z.string().optional(),
   GOOGLE_REFRESH_TOKEN:  z.string().optional(),
   MAIL_ENCRYPTION_KEY: z.string().min(32),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+  GOOGLE_ENCRYPTION_KEY: z.string().min(32).optional(),
 
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV === 'production' && value.AI_SERVICE_TOKEN === DEV_AI_TOKEN) {

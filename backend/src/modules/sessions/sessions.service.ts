@@ -101,38 +101,63 @@ export async function updateSession(
   await session.save();
 
   if (
-    session.mode === "online" &&
-    session.calendar_event_id
-  ) {
-    const child = await ChildModel.findById(session.child_id);
+  session.mode === "online" &&
+  session.calendar_event_id
+) {
 
-    if (child) {
-      const [parent, therapist] = await Promise.all([
-        UserModel.findById(child.parent_id),
-        UserModel.findById(user.sub),
-      ]);
+  const child = await ChildModel.findById(session.child_id);
 
-      await updateCalendarEvent({
-        eventId: session.calendar_event_id,
-        scheduledAt: session.scheduled_at,
-        durationMin: session.duration_min,
-        childName: child.name,
-        parentEmail: child.parent_email ?? parent?.email,
-        therapistEmail: therapist?.email,
-      });
+  if (child) {
 
-      // -------- SEND MAIL TO PARENT --------
-      if (parent?.email) {
-        await sendSessionRescheduledMailToParent(
-          child.center_id!.toString(),   // sender SMTP owner
-          parent.email,
-          parent.name,
-          child.name,
-          therapist?.name ?? "Therapist",
-          session.scheduled_at,
-          session.meeting_link
-        );
-      }
+    const [parent, therapist] = await Promise.all([
+
+      UserModel.findById(child.parent_id),
+
+      UserModel.findById(user.sub),
+
+    ]);
+
+    await updateCalendarEvent({
+
+      eventId: session.calendar_event_id,
+
+      scheduledAt: session.scheduled_at,
+
+      durationMin: session.duration_min,
+
+      childName: child.name,
+
+      parentEmail:
+        child.parent_email ??
+        parent?.email,
+
+      therapistEmail:
+        therapist?.email,
+
+    });
+
+    //Mail
+
+    if (parent?.email) {
+
+      await sendSessionRescheduledMailToParent(
+
+        child.center_id!.toString(),   // sender SMTP owner
+
+        parent.email,
+
+        parent.name,
+
+        child.name,
+
+        therapist?.name ?? "Therapist",
+
+        session.scheduled_at,
+
+        session.meeting_link
+
+      );
+
     }
   }
 

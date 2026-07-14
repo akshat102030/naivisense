@@ -10,4 +10,5 @@ router.post('/',        requireRole('center_head'), Ctrl.create);
 router.get('/',         Ctrl.list);
 router.patch('/:id/read', Ctrl.markRead);
 
+
 export default router;

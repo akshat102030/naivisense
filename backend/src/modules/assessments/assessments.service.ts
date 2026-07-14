@@ -4,6 +4,7 @@ import { AppError }                    from '../../middleware/error';
 import type { AuthPayload }            from '../../middleware/auth';
 import type { CreateAssessmentInput }  from './assessments.schema';
 import type { IDomainScores }          from '../../models/assessment.model';
+import { Types }                       from 'mongoose';
 
 // ── Score calculation helpers ─────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ async function assertAccess(childId: string, user: AuthPayload) {
 
   const ok =
     user.role === 'center_head' ||
-    (user.role === 'therapist' &&
+    (user.role === 'therapist' && 
       (child.therapists ?? []).some((t) => String(t.therapist_id) === user.sub)) ||
     (user.role === 'parent' && String(child.parent_id) === user.sub);
 
@@ -92,33 +93,202 @@ async function assertAccess(childId: string, user: AuthPayload) {
 
 // ── Public functions ──────────────────────────────────────────────────────
 
-export async function createAssessment(input: CreateAssessmentInput, user: AuthPayload) {
-  if (user.role === 'parent') throw new AppError('FORBIDDEN', 'Only therapists and admins can create assessments');
+export async function createAssessment(
+input: CreateAssessmentInput,
+user: AuthPayload
+){
 
-  await assertAccess(input.child_id, user);
 
-  const computed = computeScores(input.domain_data as Record<string, Record<string, unknown>>);
+if(user.role !== "therapist"){
+ throw new AppError(
+ "FORBIDDEN",
+ "Only therapists can create assessment"
+ );
+}
 
-  const assessment = await AssessmentModel.create({
-    child_id:     input.child_id,
-    type:         input.type,
-    date:         input.date ? new Date(input.date) : new Date(),
-    assessed_by:  user.sub,
-    is_complete:  true,
-    domain_data:  input.domain_data,
-    general_notes: input.general_notes,
-    ...computed,
-  });
 
-  return assessment;
+const scores = computeScores(input.assessment.domain_data as Record<string, Record<string, unknown>>);
+
+
+const snapshot = {
+
+type: input.assessment.type,
+
+date:new Date(),
+
+assessed_by: new Types.ObjectId(user.sub),
+
+is_complete:true,
+
+
+domain_data:
+input.assessment.domain_data,
+
+
+domain_scores:
+scores.domain_scores,
+
+
+overall_score_pct:
+scores.overall_score_pct,
+
+
+risk_level:
+scores.risk_level,
+
+
+developmental_quotient:
+scores.developmental_quotient,
+
+
+general_notes:
+input.assessment.general_notes ?? ""
+
+};
+
+
+
+
+let assessment =
+await AssessmentModel.findOne({
+ child_id:input.child_id
+});
+
+
+
+//
+// New child first assessment
+//
+
+if(!assessment){
+
+
+assessment =
+await AssessmentModel.create({
+
+child_id:
+input.child_id,
+
+
+initial:
+snapshot,
+
+
+latest:
+snapshot
+
+});
+
+
+}
+
+else{
+
+
+//
+// Existing child
+//
+
+assessment.latest =
+snapshot;
+
+
+await assessment.save();
+
+}
+
+
+
+return assessment;
+
+}
+
+export async function updateLatestAssessment(
+
+childId:string,
+
+input:CreateAssessmentInput,
+
+user:AuthPayload
+
+){
+
+
+if(user.role!=="therapist"){
+
+throw new AppError(
+"FORBIDDEN",
+"Only therapists can update assessment"
+);
+
+}
+
+ await assertAccess(childId, user);
+
+
+const assessment =
+await AssessmentModel.findOne({
+child_id:childId
+});
+
+
+
+if(!assessment){
+
+throw new AppError(
+"NOT_FOUND",
+"Assessment not found"
+);
+
+}
+
+const scores = computeScores(
+    input.assessment.domain_data as Record<string, Record<string, unknown>>
+  );
+
+const snapshot={
+
+type: input.assessment.type,
+
+date: new Date(),
+
+assessed_by: new Types.ObjectId(user.sub),
+
+is_complete: true,
+
+domain_data: input.assessment.domain_data,
+
+domain_scores: input.assessment.domain_scores ?? {},
+
+overall_score_pct: input.assessment.overall_score_pct ?? 0,
+
+risk_level: input.assessment.risk_level ?? "amber",
+
+developmental_quotient: input.assessment.developmental_quotient ?? 0,
+
+general_notes: input.assessment.general_notes ?? ""
+
+};
+
+
+
+assessment.latest =
+snapshot;
+
+
+
+await assessment.save();
+
+
+
+return assessment;
+
 }
 
 export async function listAssessments(childId: string, user: AuthPayload) {
   await assertAccess(childId, user);
   return AssessmentModel.find({ child_id: childId })
-    .sort({ date: -1 })
-    .select('-domain_data')   // omit heavy item data from list view
-    .lean();
+    .sort({ createdAt: -1 });
 }
 
 export async function getAssessment(id: string, user: AuthPayload) {
