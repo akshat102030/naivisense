@@ -249,8 +249,41 @@ function eventMeetingLink(event: {
     ?.find((entry) => entry.entryPointType === 'video')?.uri ?? undefined;
 }
 
-export async function createMeetingLink(sessionId: string): Promise<string> {
-  return fallbackResult(sessionId).meeting_link;
+export async function createMeetingLink(
+  sessionId: string,
+  centerId: string // Add centerId parameter
+): Promise<string> {
+  try {
+    const calendar = await getCalendarClient(centerId);
+    
+    // Create a calendar event with meet
+    const event = await calendar.events.insert({
+      calendarId: "primary",
+      conferenceDataVersion: 1,
+      requestBody: {
+        summary: `NaiviSense session - ${sessionId}`,
+        description: "Therapy session from NaiviSense.",
+        start: {
+          dateTime: new Date().toISOString(),
+        },
+        end: {
+          dateTime: new Date(Date.now() + 3600000).toISOString(),
+        },
+        conferenceData: {
+          createRequest: {
+            requestId: `naivisense-${sessionId}`,
+            conferenceSolutionKey: {
+              type: "hangoutsMeet"
+            }
+          }
+        }
+      }
+    });
+    
+    return eventMeetingLink(event.data) || fallbackResult(sessionId).meeting_link;
+  } catch (error) {
+    return fallbackResult(sessionId).meeting_link;
+  }
 }
 
 export async function syncCalendarEvent(
@@ -428,7 +461,7 @@ export async function updateCalendarEvent(
   payload: UpdateCalendarEventPayload
 ): Promise<CalendarEventResult> {
 
-  const calendar = getCalendarClient(payload.centerId);
+  const calendar = await getCalendarClient(payload.centerId);
 
   if (!calendar) {
     throw new AppError(
@@ -490,10 +523,11 @@ export async function updateCalendarEvent(
 }
 
 export async function deleteCalendarEvent(
-  eventId: string
+  eventId: string,
+  centerId: string
 ): Promise<void> {
 
-  const calendar = getCalendarClient();
+  const calendar = await getCalendarClient(centerId);
 
   if (!calendar) {
     throw new AppError(

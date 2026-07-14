@@ -19,8 +19,8 @@ router.post(
   '/meet',
   requireRole('center_head', 'therapist'),
   asyncHandler(async (req, res) => {
-    const { sessionId } = req.body as { sessionId: string };
-    const link = await GoogleService.createMeetingLink(sessionId);
+    const { sessionId, centerId } = req.body as { sessionId: string; centerId: string };
+    const link = await GoogleService.createMeetingLink(sessionId, centerId);
     res.json({ meeting_link: link });
   }),
 );
@@ -50,7 +50,7 @@ router.delete(
   '/calendar/:eventId',
   requireRole('center_head', 'therapist'),
   asyncHandler(async (req, res) => {
-    const event = await GoogleService.deleteCalendarEvent(req.params.eventId);
+    const event = await GoogleService.deleteCalendarEvent(req.params.eventId, req.body.centerId);
     res.json(event);
   })
 );
