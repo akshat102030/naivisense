@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISessionSchedule {
+  enrollment_mode: 'online' | 'offline'; // Added inside schedule
   days:      number[];  // 0=Sun 1=Mon … 6=Sat
   from_time: string;    // 'HH:MM' 24-h
   to_time:   string;    // 'HH:MM' 24-h
@@ -8,7 +9,7 @@ export interface ISessionSchedule {
 
 export interface IChild extends Document {
   name:             string;
-  nickname?:        string;
+  nickname?:         string;
   dob:              Date;
   gender:           'boy' | 'girl' | 'other';
   photo_url?:       string;
@@ -16,7 +17,8 @@ export interface IChild extends Document {
   severity:         'mild' | 'moderate' | 'severe';
   primary_concerns: string[];
   therapy_targets:  string[];
-  therapists:       { therapist_id: mongoose.Types.ObjectId; therapy_type: string; schedule?: ISessionSchedule }[];
+  // schedule ab ek array type hai jisme multiple sessions store honge 
+  therapists:       { therapist_id: mongoose.Types.ObjectId; therapy_type: string; schedule: ISessionSchedule[] }[];
   parent_id:        mongoose.Types.ObjectId;
   center_id?:       mongoose.Types.ObjectId;
   medical: {
@@ -35,7 +37,7 @@ export interface IChild extends Document {
     parent_involvement: string;
   };
   goals: { priorities: string[]; timeline_months: number };
-  enrollment_mode?:  'online' | 'offline' | 'hybrid';
+  //  Global enrollment_mode yahan se permanently delete kar diya h
   parent_email?:     string;
   consent_record: { given_at: Date; given_by: string };
   functional_baseline: {
@@ -69,11 +71,13 @@ const childSchema = new Schema<IChild>(
     therapists: [{
       therapist_id: { type: Schema.Types.ObjectId, ref: 'User' },
       therapy_type: { type: String, default: '' },
-      schedule: {
+      //  'schedule' array format mein aligned hai
+      schedule: [{
+        enrollment_mode: { type: String, enum: ['online', 'offline'], required: true },
         days:      [{ type: Number }],
         from_time: { type: String },
         to_time:   { type: String },
-      },
+      }],
     }],
     parent_id:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
     center_id:        { type: Schema.Types.ObjectId },
@@ -100,7 +104,7 @@ const childSchema = new Schema<IChild>(
       priorities:      [{ type: String }],
       timeline_months: { type: Number, default: 6 },
     },
-    enrollment_mode:  { type: String, enum: ['online', 'offline', 'hybrid'], default: 'offline' },
+    //  Global enrollment_mode hata diya gaya hai
     parent_email:     { type: String },
     consent_record: { given_at: Date, given_by: String },
     functional_baseline: {

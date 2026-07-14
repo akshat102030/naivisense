@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../services/error_handler_service.dart';
@@ -16,7 +17,9 @@ class SessionsRepository {
     try {
       final res = await _api.get('/sessions/upcoming');
       final list = res.data as List<dynamic>;
-      return list.map((e) => SessionModel.fromJson(e as Map<String, dynamic>)).toList();
+      return list
+          .map((e) => SessionModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw ErrorHandlerService.handle(e);
     }
@@ -27,7 +30,22 @@ class SessionsRepository {
     try {
       final res = await _api.get('/sessions', params: {'childId': childId});
       final list = res.data as List<dynamic>;
-      return list.map((e) => SessionModel.fromJson(e as Map<String, dynamic>)).toList();
+      return list
+          .map((e) => SessionModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  }
+
+  Future<SessionModel> updateSession(
+    String sessionId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final res = await _api.patch('/sessions/$sessionId', data: payload);
+
+      return SessionModel.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
       throw ErrorHandlerService.handle(e);
     }
@@ -42,7 +60,10 @@ class SessionsRepository {
     }
   }
 
-  Future<SessionModel> submitNotes(String sessionId, Map<String, dynamic> notes) async {
+  Future<SessionModel> submitNotes(
+    String sessionId,
+    Map<String, dynamic> notes,
+  ) async {
     try {
       final res = await _api.post('/sessions/$sessionId/notes', data: notes);
       return SessionModel.fromJson(res.data as Map<String, dynamic>);
@@ -51,9 +72,25 @@ class SessionsRepository {
     }
   }
 
+  Future<SessionModel> updateNotes(
+    String sessionId,
+    Map<String, dynamic> notes,
+  ) async {
+    try {
+      final res = await _api.put('/sessions/$sessionId/notes', data: notes);
+
+      return SessionModel.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  }
+
   Future<SessionModel?> getNextSession({required String childId}) async {
     try {
-      final res = await _api.get('/sessions/next', params: {'childId': childId});
+      final res = await _api.get(
+        '/sessions/next',
+        params: {'childId': childId},
+      );
       if (res.data == null) return null;
       return SessionModel.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {

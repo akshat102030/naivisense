@@ -1,9 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface ICenterProfile extends Document {
-
     user_id: mongoose.Types.ObjectId;
-
     center_name: string;
 
     smtp_credentials: {
@@ -25,7 +23,6 @@ export interface ICenterProfile extends Document {
 
 
 const centerProfileSchema = new Schema<ICenterProfile>({
-
     user_id: {
         type: Schema.Types.ObjectId,
         ref: "User",

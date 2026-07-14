@@ -1,16 +1,17 @@
 import express            from 'express';
 import helmet            from 'helmet';
-import cors              from 'cors';
-import { env }           from './config/env';
+import cors               from 'cors';
+import morgan             from 'morgan';
+import { env }            from './config/env';
 import { generalRateLimit } from './middleware/rate-limit';
-import { errorHandler }  from './middleware/error';
-import authRoutes        from './modules/auth/auth.routes';
-import usersRoutes       from './modules/users/users.routes';
-import childrenRoutes    from './modules/children/children.routes';
-import assessmentsRoutes from './modules/assessments/assessments.routes';
-import sessionsRoutes    from './modules/sessions/sessions.routes';
-import homePlansRoutes   from './modules/home-plans/home-plans.routes';
-import dietPlansRoutes   from './modules/diet-plans/diet-plans.routes';
+import { errorHandler }   from './middleware/error';
+import authRoutes         from './modules/auth/auth.routes';
+import usersRoutes        from './modules/users/users.routes';
+import childrenRoutes     from './modules/children/children.routes';
+import assessmentsRoutes  from './modules/assessments/assessments.routes';
+import sessionsRoutes     from './modules/sessions/sessions.routes';
+import homePlansRoutes    from './modules/home-plans/home-plans.routes';
+import dietPlansRoutes    from './modules/diet-plans/diet-plans.routes';
 import verificationRoutes from './modules/verification/verification.routes';
 import alertsRoutes      from './modules/alerts/alerts.routes';
 import concernsRoutes    from './modules/concerns/concerns.routes';
@@ -31,7 +32,8 @@ import sessionNotesRoutes from "./modules/session-notes/session-notes.routes";
 
 
 const app = express();
-
+app.set('trust proxy', 1);
+app.use(morgan('dev'));
 app.disable('x-powered-by');
 
 const allowedOrigins = env.ALLOWED_ORIGIN
@@ -88,13 +90,13 @@ app.use(`${api}/alerts`,       alertsRoutes);
 app.use(`${api}/concerns`,     concernsRoutes);
 app.use(`${api}/goals`,        goalsRoutes);
 app.use(`${api}/reviews`,      reviewsRoutes);
-app.use(`${api}/videos`,        videosRoutes);
-app.use(`${api}/diet-requests`,  dietRequestsRoutes);
-app.use(`${api}/attendance`,     attendanceRoutes);
-app.use(`${api}/notifications`,  notificationsRoutes);
-app.use(`${api}/google`,         googleRoutes);
-app.use(`${api}/rag`,            ragRoutes);
-app.use(`${api}/reports`,        reportsRoutes);
+app.use(`${api}/videos`,       videosRoutes);
+app.use(`${api}/diet-requests`, dietRequestsRoutes);
+app.use(`${api}/attendance`,   attendanceRoutes);
+app.use(`${api}/notifications`, notificationsRoutes);
+app.use(`${api}/google`,       googleRoutes);
+app.use(`${api}/rag`,          ragRoutes);
+app.use(`${api}/reports`,      reportsRoutes);
 app.use(`${api}/ai`,           aiRoutes);
 app.use(`${api}/chatbot`,      chatbotRoutes);
 app.use(`${api}/payments`,     paymentsRoutes);
