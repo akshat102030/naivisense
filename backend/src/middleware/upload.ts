@@ -20,7 +20,19 @@ const VIDEO_MAX_MB = 200;
 
 function isAllowed(file: Express.Multer.File, allowed: Record<string, string[]>): boolean {
   const ext = path.extname(file.originalname).toLowerCase();
-  return Boolean(allowed[file.mimetype]?.includes(ext));
+  
+  // 1. Direct validation: Does the exact MIME type map to this extension?
+  const mimeMatches = Boolean(allowed[file.mimetype]?.includes(ext));
+  if (mimeMatches) return true;
+
+  // 2. Fallback validation: Is the file extension present anywhere in our allowed list?
+  // (Fixes issues where curl/browsers send 'application/octet-stream' or wrong MIME types)
+  const allowedExtensions = Object.values(allowed).flat();
+  if (allowedExtensions.includes(ext)) {
+    return true;
+  }
+
+  return false;
 }
 
 export const upload = multer({

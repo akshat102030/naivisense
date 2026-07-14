@@ -88,9 +88,7 @@ export async function assignVideo(videoId: string, childId: string, user: AuthPa
   const video = await VideoModel.findById(videoId);
   if (!video) throw new AppError('NOT_FOUND', 'Video not found');
 
-  // A video that already belongs to a specific child (child_id set) was
-  // uploaded for that child only — it must never be assignable to a
-  // different child, since that would leak one family's video to another.
+  // check(if a video is already assigned to a child, it cannot be assigned to another child)
   if (video.child_id) {
     throw new AppError('FORBIDDEN', 'This video already belongs to a specific child and cannot be assigned to others');
   }
