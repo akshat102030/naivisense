@@ -29,9 +29,9 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
 
 export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload) {
   // only parent can trigger check-in
- // if (user.role !== 'parent') {
-    //throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
-  //}
+  if (user.role !== 'parent') {
+    throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
+  }
 
   const session = await SessionModel.findById(input.session_id).lean();
   if (!session) {

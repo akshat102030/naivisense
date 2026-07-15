@@ -11,7 +11,7 @@ router.use(requireAuth);
 //  1. Parent Check-In (only parents)
 router.post(
   '/parent-checkin', 
-  requireRole('parent','therapist'), 
+  requireRole('parent'), 
   Ctrl.parentCheckIn
 );
 
