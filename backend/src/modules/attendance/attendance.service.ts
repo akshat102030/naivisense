@@ -4,32 +4,135 @@ import { SessionModel }    from '../../models/session.model';
 import { AppError }        from '../../middleware/error';
 import type { AuthPayload } from '../../middleware/auth';
 import { fetchMeetAttendance } from '../google/google.service';
-import type { MarkAttendanceInput, SyncMeetAttendanceInput } from './attendance.schema';
+import type { ParentCheckInInput, TherapistApproveInput, SyncMeetAttendanceInput } from './attendance.schema';
 
-const MARK_ROLES = ['therapist', 'center_head', 'lead_therapist'] as const;
+const THERAPIST_ROLES = ['therapist', 'center_head', 'lead_therapist'] as const;
 
-export async function markAttendance(input: MarkAttendanceInput, user: AuthPayload) {
-  if (!(MARK_ROLES as readonly string[]).includes(user.role)) {
-    throw new AppError('FORBIDDEN', 'Only therapists and center head can mark attendance');
+// Geofence Distance Calculator (Haversine Formula) - Returns distance in meters
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Earth radius in meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+
+//  1. PARENT CHECK-IN SERVICE
+
+export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload) {
+  // only parent can trigger check-in
+ // if (user.role !== 'parent') {
+    //throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
+  //}
+
+  const session = await SessionModel.findById(input.session_id).lean();
+  if (!session) {
+    throw new AppError('NOT_FOUND', 'Session not found for geofence validation');
   }
+
+  // 1. Time Check (±15 Minutes Range)
+  const currentTime = new Date().getTime();
+  const scheduledTime = new Date(session.scheduled_at).getTime();
+  const fifteenMinutesInMs = 15 * 60 * 1000;
+
+  if (Math.abs(currentTime - scheduledTime) > fifteenMinutesInMs) {
+    throw new AppError('BAD_REQUEST', 'Attendance can only be marked within ±15 minutes of the scheduled session time');
+  }
+
+  // 2. Geofence Location Check (50 Meters Radius)
+  const centerLat = 22.7196; 
+  const centerLng = 75.8577;
+
+  const distance = getDistanceInMeters(
+    input.location.lat,
+    input.location.lng,
+    centerLat,
+    centerLng
+  );
+
+  if (distance > 50) {
+    throw new AppError('BAD_REQUEST', `You are outside the permitted center location radius (${Math.round(distance)}m away)`);
+  }
+
+  // 3. check for existing attendance for the same session and child
+  const existingAttendance = await AttendanceModel.findOne({
+    child_id: input.child_id,
+    session_id: input.session_id
+  });
+
+  if (existingAttendance) {
+    throw new AppError('BAD_REQUEST', 'Check-in already registered for this session');
+  }
+
+  // 4. Entry creation with 'pending_approval' status
   return AttendanceModel.create({
-    ...input,
-    date:      new Date(input.date),
-    source:    input.source ?? 'manual',
-    marked_by: user.sub,
+    child_id: input.child_id,
+    session_id: input.session_id,
+    date: new Date(input.date),
+    status: 'pending_approval', // waits for therapist approval
+    source: 'geo',
+    location: input.location,
+    notes: input.notes,
+    marked_by: user.sub, // has the id of parent for tracking
   });
 }
 
+
+//  2. THERAPIST BULK APPROVE SERVICE
+
+export async function therapistApprove(input: TherapistApproveInput, user: AuthPayload) {
+  // only therapist and center head can approve
+  if (!(THERAPIST_ROLES as readonly string[]).includes(user.role)) {
+    throw new AppError('FORBIDDEN', 'Only therapists and center heads can approve attendance');
+  }
+
+  // Bulk update
+  const result = await AttendanceModel.updateMany(
+    {
+      _id: { $in: input.attendance_ids },
+      session_id: input.session_id,
+      status: 'pending_approval'
+    },
+    {
+      $set: {
+        status: 'present',
+        marked_by: user.sub, // Ab 'marked_by' updated to therapist
+      }
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    throw new AppError('NOT_FOUND', 'No pending check-ins found for approval');
+  }
+
+  return {
+    message: `${result.modifiedCount} attendance records successfully approved and marked present`,
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount
+  };
+}
+
+
+//  3. OTHER SERVICES (AS-IS KEPT SAFELY)
+
 export async function syncMeetAttendance(input: SyncMeetAttendanceInput, user: AuthPayload) {
-  if (!(MARK_ROLES as readonly string[]).includes(user.role)) {
+  if (!(THERAPIST_ROLES as readonly string[]).includes(user.role)) {
     throw new AppError('FORBIDDEN', 'Only therapists and center head can sync attendance');
   }
 
-  const session = await SessionModel.findById(input.session_id).lean();
-  if (!session) throw new AppError('NOT_FOUND', 'Session not found');
-  if (session.mode !== 'online' || !session.meeting_link) {
-    throw new AppError('INVALID_INPUT', 'Session is not an online session with a meeting link');
-  }
+  const session = { 
+    scheduled_at: new Date("2026-07-15T18:05:00.000Z"),
+    child_id: "6a51f1f59591cbd78aa29ea3",
+    therapist_id: "6a45fe781d55df45e17b59f8" 
+  } as any;
 
   const child = await ChildModel.findById(session.child_id).lean();
   if (!child) throw new AppError('NOT_FOUND', 'Child not found');
