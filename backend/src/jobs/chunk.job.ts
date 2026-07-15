@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-import { Worker } from 'bullmq';
+
 import { env }  from '../config/env';
-import logger     from '../utils/logger';
-=======
 import { Worker }             from 'bullmq';
 import { redis }              from '../config/redis';
 import logger                 from '../utils/logger';
@@ -89,7 +86,9 @@ async function rebuildSnapshot(childId: string): Promise<void> {
   for (const sess of recentSessions) {
     if (!sess.notes) continue;
     const n = sess.notes;
-    if (n.communication_score >= 7 || n.attention_score >= 7) {
+    if (
+  (n.communication_score ?? 0) >= 7 ||
+  (n.attention_score ?? 0) >= 7 )  {
       recentWins.push(`Strong session ${sess.scheduled_at.toLocaleDateString()}`);
     }
     if (n.follow_up_required) {
@@ -164,13 +163,13 @@ async function rebuildSnapshot(childId: string): Promise<void> {
       home_context: child.home_context ?? {},
     },
     baseline_assessment: baselineAssessment
-      ? { date: baselineAssessment.date, traits: baselineAssessment.domain_scores ?? {} }
+      ? { date: baselineAssessment.latest?.date, traits: baselineAssessment.latest?.domain_scores ?? {} }
       : { date: new Date(), traits: {} },
     latest_assessment: latestAssessment
       ? {
-        date:    latestAssessment.date,
-        traits:  latestAssessment.domain_scores ?? {},
-        summary: `${latestAssessment.type} — ${latestAssessment.overall_score_pct?.toFixed(0) ?? 0}% overall`,
+        date:    latestAssessment.latest?.date,
+        traits:  latestAssessment.latest?.domain_scores ?? {},
+        summary: `${latestAssessment.latest?.type} — ${latestAssessment.latest?.overall_score_pct?.toFixed(0) ?? 0}% overall`,
       }
       : { date: new Date(), traits: {}, summary: 'No assessment yet' },
     trends: {
@@ -196,7 +195,6 @@ async function rebuildSnapshot(childId: string): Promise<void> {
 
   logger.info({ childId, version: newVersion, attendancePct, homePlanPct, dietPlanPct }, 'Snapshot rebuilt');
 }
->>>>>>> 621065d26cd57f5b6029f004fd0285600a34d548
 
 export const snapshotWorker = new Worker(
   'snapshot.rebuild',

@@ -1,9 +1,6 @@
-<<<<<<< HEAD
+
 import { Worker } from 'bullmq';
 import { env }                  from '../config/env';
-import logger                     from '../utils/logger';
-=======
-import { Worker }             from 'bullmq';
 import { redis }              from '../config/redis';
 import logger                 from '../utils/logger';
 import { ChildModel }         from '../models/child.model';
@@ -81,7 +78,7 @@ async function generateMonthlyReportForChild(
   }
   if (latestAssessment) {
     observations.push(
-      `Latest assessment: ${latestAssessment.type} — ${latestAssessment.overall_score_pct?.toFixed(0) ?? 'N/A'}% overall`,
+      `Latest assessment: ${latestAssessment.latest?.type} — ${latestAssessment.latest?.overall_score_pct?.toFixed(0) ?? 'N/A'}% overall`,
     );
   }
   if (snapshot?.ai_insights?.recommendations?.length) {
@@ -103,7 +100,6 @@ async function generateMonthlyReportForChild(
 
   logger.info({ childId, period: periodStart }, 'Monthly report generated');
 }
->>>>>>> 621065d26cd57f5b6029f004fd0285600a34d548
 
 export const reportWorker = new Worker(
   'report.monthly',

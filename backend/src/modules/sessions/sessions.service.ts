@@ -1,53 +1,68 @@
-import { SessionModel }           from '../../models/session.model';
-import { ChildModel }             from '../../models/child.model';
-import { UserModel }              from '../../models/user.model';
-import { CenterProfileModel }     from '../../models/center-profile.model'; // Added for geofencing coordinates
-import { AppError }               from '../../middleware/error';
-import type { AuthPayload }       from '../../middleware/auth';
-import { snapshotQueue }          from '../../jobs/queues';
-import { syncCalendarEvent, updateCalendarEvent, deleteCalendarEvent }      from '../google/google.service';
-import type { CreateSessionInput, SubmitNotesInput, UpdateSessionInput, GeofenceAttendanceInput } from './sessions.schema';
+import { SessionModel } from "../../models/session.model";
+import { ChildModel } from "../../models/child.model";
+import { UserModel } from "../../models/user.model";
+import { CenterProfileModel } from "../../models/center-profile.model"; // Added for geofencing coordinates
+import { AppError } from "../../middleware/error";
+import type { AuthPayload } from "../../middleware/auth";
+import { snapshotQueue } from "../../jobs/queues";
+import {
+  syncCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from "../google/google.service";
+import type {
+  CreateSessionInput,
+  SubmitNotesInput,
+  UpdateSessionInput,
+  GeofenceAttendanceInput,
+} from "./sessions.schema";
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
-import { getDistanceInMeters }    from '../../utils/distance'; // Added distance utility
+import { getDistanceInMeters } from "../../utils/distance"; // Added distance utility
 
-export async function createSession(input: CreateSessionInput, user: AuthPayload) {
-  if (user.role !== 'therapist') {
-    throw new AppError('FORBIDDEN', 'Only therapists can create sessions');
+export async function createSession(
+  input: CreateSessionInput,
+  user: AuthPayload
+) {
+  if (user.role !== "therapist") {
+    throw new AppError("FORBIDDEN", "Only therapists can create sessions");
   }
 
-  const child = input.mode === 'online'
-    ? await ChildModel.findById(input.child_id).lean()
-    : null;
+  const child =
+    input.mode === "online"
+      ? await ChildModel.findById(input.child_id).lean()
+      : null;
 
-  if (input.mode === 'online' && !child) {
-    throw new AppError('NOT_FOUND', 'Child not found');
+  if (input.mode === "online" && !child) {
+    throw new AppError("NOT_FOUND", "Child not found");
   }
 
   const session = await SessionModel.create({
     ...input,
     therapist_id: user.sub,
-    scheduled_at: input.scheduled_at ? new Date(input.scheduled_at) : new Date(),
+    scheduled_at: input.scheduled_at
+      ? new Date(input.scheduled_at)
+      : new Date(),
   });
 
-  if (input.mode === 'online' && child) {
+  if (input.mode === "online" && child) {
     const [parent, therapist] = await Promise.all([
       UserModel.findById(child.parent_id).lean(),
       UserModel.findById(user.sub).lean(),
     ]);
 
     const calendar = await syncCalendarEvent({
-      sessionId:      session._id.toString(),
-      centerId:       child.center_id!.toString(),
-      scheduledAt:    session.scheduled_at,
-      durationMin:    session.duration_min,
-      childName:      child.name,
-      parentEmail:    child.parent_email ?? parent?.email,
+      sessionId: session._id.toString(),
+      centerId: child.center_id!.toString(),
+      scheduledAt: session.scheduled_at,
+      durationMin: session.duration_min,
+      childName: child.name,
+      parentEmail: child.parent_email ?? parent?.email,
       therapistEmail: therapist?.email,
     });
 
-    session.meeting_link       = calendar.meeting_link;
-    session.calendar_event_id  = calendar.calendar_event_id;
-    session.calendar_provider  = calendar.calendar_provider;
+    session.meeting_link = calendar.meeting_link;
+    session.calendar_event_id = calendar.calendar_event_id;
+    session.calendar_provider = calendar.calendar_provider;
     session.calendar_synced_at = new Date();
     await session.save();
   }
@@ -58,29 +73,20 @@ export async function createSession(input: CreateSessionInput, user: AuthPayload
 export async function updateSession(
   sessionId: string,
   input: UpdateSessionInput,
-  user: AuthPayload,
+  user: AuthPayload
 ) {
   if (user.role !== "therapist") {
-    throw new AppError(
-      "FORBIDDEN",
-      "Only therapists can update sessions"
-    );
+    throw new AppError("FORBIDDEN", "Only therapists can update sessions");
   }
 
   const session = await SessionModel.findById(sessionId);
 
   if (!session) {
-    throw new AppError(
-      "NOT_FOUND",
-      "Session not found"
-    );
+    throw new AppError("NOT_FOUND", "Session not found");
   }
 
   if (session.therapist_id.toString() !== user.sub) {
-    throw new AppError(
-      "FORBIDDEN",
-      "This is not your session"
-    );
+    throw new AppError("FORBIDDEN", "This is not your session");
   }
 
   if (input.scheduled_at) {
@@ -101,102 +107,71 @@ export async function updateSession(
 
   await session.save();
 
-  if (
-  session.mode === "online" &&
-  session.calendar_event_id
-) {
+  if (session.mode === "online" && session.calendar_event_id) {
+    const child = await ChildModel.findById(session.child_id);
 
-  const child = await ChildModel.findById(session.child_id);
+    if (child) {
+      const [parent, therapist] = await Promise.all([
+        UserModel.findById(child.parent_id),
 
-  if (child) {
+        UserModel.findById(user.sub),
+      ]);
 
-    const [parent, therapist] = await Promise.all([
+      await updateCalendarEvent({
+        eventId: session.calendar_event_id,
+        centerId: child.center_id!.toString(),
 
-      UserModel.findById(child.parent_id),
+        scheduledAt: session.scheduled_at,
 
-      UserModel.findById(user.sub),
+        durationMin: session.duration_min,
 
-    ]);
+        childName: child.name,
 
-    await updateCalendarEvent({
+        parentEmail: child.parent_email ?? parent?.email,
 
-      eventId: session.calendar_event_id,
-      centerId:  child.center_id!.toString(),
+        therapistEmail: therapist?.email,
+      });
 
-      scheduledAt: session.scheduled_at,
+      //Mail
 
-      durationMin: session.duration_min,
+      if (parent?.email) {
+        await sendSessionRescheduledMailToParent(
+          child.center_id!.toString(), // sender SMTP owner
 
-      childName: child.name,
+          parent.email,
 
-      parentEmail:
-        child.parent_email ??
-        parent?.email,
+          parent.name,
 
-      therapistEmail:
-        therapist?.email,
+          child.name,
 
-    });
+          therapist?.name ?? "Therapist",
 
-    //Mail
+          session.scheduled_at,
 
-    if (parent?.email) {
-
-      await sendSessionRescheduledMailToParent(
-
-        child.center_id!.toString(),   // sender SMTP owner
-
-        parent.email,
-
-        parent.name,
-
-        child.name,
-
-        therapist?.name ?? "Therapist",
-
-        session.scheduled_at,
-
-        session.meeting_link
-
-      );
-
+          session.meeting_link
+        );
+      }
     }
   }
-
   return session;
 }
 
-async function cancelSession(
-  sessionId: string,
-  user: AuthPayload
-) {
+export async function cancelSession(sessionId: string, user: AuthPayload) {
   if (user.role !== "therapist") {
-    throw new AppError(
-      "FORBIDDEN",
-      "Only therapists can cancel sessions"
-    );
+    throw new AppError("FORBIDDEN", "Only therapists can cancel sessions");
   }
 
   const session = await SessionModel.findById(sessionId);
 
   if (!session) {
-    throw new AppError(
-      "NOT_FOUND",
-      "Session not found"
-    );
+    throw new AppError("NOT_FOUND", "Session not found");
   }
 
   if (session.therapist_id.toString() !== user.sub) {
-    throw new AppError(
-      "FORBIDDEN",
-      "This is not your session"
-    );
+    throw new AppError("FORBIDDEN", "This is not your session");
   }
 
-  if (
-    session.mode === "online" &&
-    session.calendar_event_id
-  ) {
+  if (session.mode === "online" && session.calendar_event_id) {
     await deleteCalendarEvent(session.calendar_event_id, user.sub);
   }
 
@@ -210,84 +185,118 @@ async function cancelSession(
   return session;
 }
 
- async function submitNotes(sessionId: string, notes: SubmitNotesInput, user: AuthPayload) {
-  if (user.role !== 'therapist') {
-    throw new AppError('FORBIDDEN', 'Only therapists can submit session notes');
+export async function submitNotes(
+  sessionId: string,
+  notes: SubmitNotesInput,
+  user: AuthPayload
+) {
+  if (user.role !== "therapist") {
+    throw new AppError("FORBIDDEN", "Only therapists can submit session notes");
   }
   const session = await SessionModel.findById(sessionId);
-  if (!session) throw new AppError('NOT_FOUND', 'Session not found');
+  if (!session) throw new AppError("NOT_FOUND", "Session not found");
   if (session.therapist_id.toString() !== user.sub) {
-    throw new AppError('FORBIDDEN', 'This is not your session');
+    throw new AppError("FORBIDDEN", "This is not your session");
   }
 
   session.notes = { ...notes, submitted_at: new Date() };
-  session.status = 'completed';
+  session.status = "completed";
   await session.save();
 
-  await snapshotQueue.add('rebuild', { childId: session.child_id.toString() });
+  await snapshotQueue.add("rebuild", {
+    childId: session.child_id.toString(),
+  });
 
   return session;
 }
 
-async function getUpcomingSessions(user: AuthPayload) {
-  const now    = new Date();
+export async function getUpcomingSessions(user: AuthPayload) {
+  const now = new Date();
   const filter =
-    user.role === 'therapist'
-      ? { therapist_id: user.sub, scheduled_at: { $gte: now }, status: 'scheduled' }
-      : { scheduled_at: { $gte: now }, status: 'scheduled' };
+    user.role === "therapist"
+      ? {
+          therapist_id: user.sub,
+          scheduled_at: { $gte: now },
+          status: "scheduled",
+        }
+      : { scheduled_at: { $gte: now }, status: "scheduled" };
 
   return SessionModel.find(filter).sort({ scheduled_at: 1 }).limit(20).lean();
 }
 
-async function listSessions(childId: string, user: AuthPayload) {
+export async function listSessions(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
-  if (!child) throw new AppError('NOT_FOUND', 'Child not found');
+  if (!child) throw new AppError("NOT_FOUND", "Child not found");
 
   const canAccess =
-    user.role === 'center_head' ||
-    user.role === 'lead_therapist' ||
-    (user.role === 'therapist' && (child.therapists ?? []).some((t) => String(t.therapist_id) === user.sub)) ||
-    (user.role === 'parent'    && String(child.parent_id)    === user.sub);
+    user.role === "center_head" ||
+    user.role === "lead_therapist" ||
+    (user.role === "therapist" &&
+      (child.therapists ?? []).some(
+        (t) => String(t.therapist_id) === user.sub
+      )) ||
+    (user.role === "parent" && String(child.parent_id) === user.sub);
 
-  if (!canAccess) throw new AppError('FORBIDDEN', 'Access denied');
-  return SessionModel.find({ child_id: childId }).sort({ scheduled_at: -1 }).lean();
+  if (!canAccess) throw new AppError("FORBIDDEN", "Access denied");
+  return SessionModel.find({ child_id: childId })
+    .sort({ scheduled_at: -1 })
+    .lean();
 }
 
-async function getNextSession(childId: string, user: AuthPayload) {
+export async function getNextSession(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
-  if (!child) throw new AppError('NOT_FOUND', 'Child not found');
+  if (!child) throw new AppError("NOT_FOUND", "Child not found");
 
   const canAccess =
-    user.role === 'center_head' ||
-    user.role === 'lead_therapist' ||
-    (user.role === 'therapist' && (child.therapists ?? []).some((t) => String(t.therapist_id) === user.sub)) ||
-    (user.role === 'parent'    && String(child.parent_id)    === user.sub);
+    user.role === "center_head" ||
+    user.role === "lead_therapist" ||
+    (user.role === "therapist" &&
+      (child.therapists ?? []).some(
+        (t) => String(t.therapist_id) === user.sub
+      )) ||
+    (user.role === "parent" && String(child.parent_id) === user.sub);
 
-  if (!canAccess) throw new AppError('FORBIDDEN', 'Access denied');
+  if (!canAccess) throw new AppError("FORBIDDEN", "Access denied");
 
   const now = new Date();
   const next = await SessionModel.findOne({
-    child_id:     childId,
+    child_id: childId,
     scheduled_at: { $gte: now },
-    status:       'scheduled',
-  }).sort({ scheduled_at: 1 }).lean();
+    status: "scheduled",
+  })
+    .sort({ scheduled_at: 1 })
+    .lean();
 
   return next ?? null;
 }
 
-
 //  NEW CHANGES: GEOFENCE ATTENDANCE CORE BUSINESS LOGIC
 
-async function markGeofenceAttendance(input: GeofenceAttendanceInput, user: AuthPayload) {
+export async function markGeofenceAttendance(
+  input: GeofenceAttendanceInput,
+  user: AuthPayload
+) {
   // 1. Role validation check (sirf parents hi bache ki attendance mark kar sakte hain)
-  if (user.role !== 'parent') {
-    throw new AppError('FORBIDDEN', 'Only parents can mark attendance via geofencing');
+  if (user.role !== "parent") {
+    throw new AppError(
+      "FORBIDDEN",
+      "Only parents can mark attendance via geofencing"
+    );
   }
 
   // 2. Fetch center's coordinates
-  const center = await CenterProfileModel.findOne({ user_id: input.center_id }).lean();
-  if (!center || (center as any).latitude === undefined || (center as any).longitude === undefined) {
-    throw new AppError('BAD_REQUEST', 'Center location settings are not configured yet.');
+  const center = await CenterProfileModel.findOne({
+    user_id: input.center_id,
+  }).lean();
+  if (
+    !center ||
+    (center as any).latitude === undefined ||
+    (center as any).longitude === undefined
+  ) {
+    throw new AppError(
+      "BAD_REQUEST",
+      "Center location settings are not configured yet."
+    );
   }
 
   // 3. Distance Check using Haversine Utility
@@ -301,8 +310,10 @@ async function markGeofenceAttendance(input: GeofenceAttendanceInput, user: Auth
   const allowedRadius = (center as any).radius_meters || 50;
   if (distance > allowedRadius) {
     throw new AppError(
-      'BAD_REQUEST', 
-      `You are outside the center perimeter. Distance: ${Math.round(distance)} meters away.`
+      "BAD_REQUEST",
+      `You are outside the center perimeter. Distance: ${Math.round(
+        distance
+      )} meters away.`
     );
   }
 
@@ -314,28 +325,35 @@ async function markGeofenceAttendance(input: GeofenceAttendanceInput, user: Auth
   // Find a session scheduled for this child at this specific timing window
   const activeSession = await SessionModel.findOne({
     child_id: input.child_id,
-    mode: 'offline', // Offline maps to physical center attendance
-    status: 'scheduled',
-    scheduled_at: { $gte: fifteenMinsBefore, $lte: fifteenMinsAfter }
+    mode: "offline", // Offline maps to physical center attendance
+    status: "scheduled",
+    scheduled_at: { $gte: fifteenMinsBefore, $lte: fifteenMinsAfter },
   });
 
   if (!activeSession) {
-    throw new AppError('NOT_FOUND', 'No offline session scheduled at this current time slot (+/- 15 mins window).');
+    throw new AppError(
+      "NOT_FOUND",
+      "No offline session scheduled at this current time slot (+/- 15 mins window)."
+    );
   }
 
   // 5. Check if therapist has already completed or marked it (Double check boundary)
-  if (activeSession.status === 'completed') {
-    throw new AppError('BAD_REQUEST', 'Attendance has already been recorded for this session.');
+  if (activeSession.status === "completed") {
+    throw new AppError(
+      "BAD_REQUEST",
+      "Attendance has already been recorded for this session."
+    );
   }
 
   // 6. Update Status & Attendance Source
-  activeSession.status = 'completed';
-  activeSession.attendance_source = 'geo';
+  activeSession.status = "completed";
+  activeSession.attendance_source = "geo";
   await activeSession.save();
 
   // 7. Trigger any background data rebuild if needed (copied style from submitNotes)
-  await snapshotQueue.add('rebuild', { childId: activeSession.child_id.toString() });
+  await snapshotQueue.add("rebuild", {
+    childId: activeSession.child_id.toString(),
+  });
 
   return activeSession;
-}
 }

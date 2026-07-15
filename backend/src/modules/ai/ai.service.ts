@@ -61,16 +61,16 @@ async function buildChildContext(childId: string): Promise<string> {
   }
 
   if (latestAssessment) {
-    const a = latestAssessment;
+    const a = latestAssessment.latest;
     parts.push(
-      `\n=== LATEST ASSESSMENT (${a.type}, ${a.date.toLocaleDateString()}) ===`,
-      `Overall score: ${a.overall_score_pct.toFixed(0)}%, Risk: ${a.risk_level}`,
+      `\n=== LATEST ASSESSMENT (${a?.type}, ${a?.date?.toLocaleDateString()}) ===`,
+      `Overall score: ${a?.overall_score_pct?.toFixed(0)}%, Risk: ${a?.risk_level}`,
     );
-    if (a.domain_scores) {
-      const d = a.domain_scores;
+    if (a?.domain_scores) {
+      const d = a?.domain_scores;
       parts.push(
-        `Domain scores — Attention: ${d.attention}, Communication: ${d.social_communication}, ` +
-        `Receptive language: ${d.receptive_language}, Expressive language: ${d.expressive_language}`,
+        `Domain scores — Attention: ${d?.attention}, Communication: ${d?.social_communication}, ` +
+        `Receptive language: ${d?.receptive_language}, Expressive language: ${d?.expressive_language}`,
       );
     }
   }
