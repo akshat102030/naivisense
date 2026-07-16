@@ -6,7 +6,7 @@ export const ParentCheckInSchema = z.object({
   session_id: z.string().length(24).optional(),
   date:       z.string().datetime({ offset: true }),
   
-  status:     z.enum(['pending_approval', 'present', 'absent']).optional(),
+  status:     z.enum(['pending_approval', 'present', 'absent']),
   
   // Allowing either 'geo' (inside geofence) or 'manual_override' (outside geofence)
   source:     z.enum(['geo', 'manual_override']).default('geo'), 

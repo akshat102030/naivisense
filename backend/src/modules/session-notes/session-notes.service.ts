@@ -2,335 +2,145 @@ import { SessionModel } from "../../models/session.model";
 import { ChildModel } from "../../models/child.model";
 import { AppError } from "../../middleware/error";
 
-import type { AuthPayload } 
-from "../../middleware/auth";
+import type { AuthPayload } from "../../middleware/auth";
 
-import type {
- SessionNotesInput
-}
-from "./session-notes.schema";
-
-
+import type { SessionNotesInput } from "./session-notes.schema";
 
 export async function addNotes(
+  sessionId: string,
 
-    sessionId:string,
+  input: SessionNotesInput,
 
-    input:SessionNotesInput,
+  user: AuthPayload
+) {
+  if (user.role !== "therapist") {
+    throw new AppError("FORBIDDEN", "Only therapists can add notes");
+  }
 
-    user:AuthPayload
+  const session = await SessionModel.findById(sessionId);
 
-){
+  if (!session) {
+    throw new AppError("NOT_FOUND", "Session not found");
+  }
 
-    if(user.role !== "therapist")
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "Only therapists can add notes"
-        );
-    }
+  if (session.therapist_id.toString() !== user.sub) {
+    throw new AppError("FORBIDDEN", "This is not your session");
+  }
 
+  if (session.notes) {
+    throw new AppError("CONFLICT", "Notes already exist");
+  }
 
+  session.notes = {
+    ...input,
 
-    const session =
-    await SessionModel.findById(sessionId);
+    submitted_at: new Date(),
+  };
 
+  session.status = "completed";
 
+  await session.save();
 
-    if(!session)
-    {
-        throw new AppError(
-            "NOT_FOUND",
-            "Session not found"
-        );
-    }
-
-
-
-    if(
-        session.therapist_id.toString()
-        !== user.sub
-    )
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "This is not your session"
-        );
-    }
-
-
-
-    if(session.notes)
-    {
-        throw new AppError(
-            "CONFLICT",
-            "Notes already exist"
-        );
-    }
-
-
-
-    session.notes = {
-
-        ...input,
-
-        submitted_at:new Date()
-
-    };
-
-
-
-    session.status="completed";
-
-
-    await session.save();
-
-
-    return session;
-
+  return session;
 }
-
-
-
-
-
 
 export async function updateNotes(
+  sessionId: string,
 
-    sessionId:string,
+  input: SessionNotesInput,
 
-    input:SessionNotesInput,
+  user: AuthPayload
+) {
+  if (user.role !== "therapist") {
+    throw new AppError("FORBIDDEN", "Only therapists can update notes");
+  }
 
-    user:AuthPayload
+  const session = await SessionModel.findById(sessionId);
 
-){
+  if (!session) {
+    throw new AppError("NOT_FOUND", "Session not found");
+  }
 
-    if(user.role !== "therapist")
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "Only therapists can update notes"
-        );
-    }
+  if (session.therapist_id.toString() !== user.sub) {
+    throw new AppError("FORBIDDEN", "Not your session");
+  }
 
+  if (!session.notes) {
+    throw new AppError("NOT_FOUND", "Notes not found");
+  }
 
+  session.notes = {
+    ...session.notes,
 
-    const session =
-    await SessionModel.findById(sessionId);
+    ...input,
 
+    submitted_at: new Date(),
+  };
 
+  await session.save();
 
-    if(!session)
-    {
-        throw new AppError(
-            "NOT_FOUND",
-            "Session not found"
-        );
-    }
-
-
-
-    if(
-        session.therapist_id.toString()
-        !==user.sub
-    )
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "Not your session"
-        );
-    }
-
-
-
-    if(!session.notes)
-    {
-        throw new AppError(
-            "NOT_FOUND",
-            "Notes not found"
-        );
-    }
-
-
-
-    session.notes = {
-
-        ...session.notes,
-
-        ...input,
-
-        submitted_at:new Date()
-
-    };
-
-
-
-    await session.save();
-
-
-    return session.notes;
-
+  return session.notes;
 }
-
-
-
-
-
-
 
 export async function getNotes(
+  sessionId: string,
 
-    sessionId:string,
+  user: AuthPayload
+) {
+  const session = await SessionModel.findById(sessionId);
 
-    user:AuthPayload
+  if (!session) {
+    throw new AppError("NOT_FOUND", "Session not found");
+  }
 
-){
+  const child = await ChildModel.findById(session.child_id);
 
-    const session =
-    await SessionModel.findById(sessionId);
+  if (!child) {
+    throw new AppError("NOT_FOUND", "Child not found");
+  }
 
-
-
-    if(!session)
-    {
-        throw new AppError(
-            "NOT_FOUND",
-            "Session not found"
-        );
-    }
-
-
-
-    const child =
-    await ChildModel.findById(
-        session.child_id
-    );
-
-
-
-    if(!child)
-    {
-        throw new AppError(
-            "NOT_FOUND",
-            "Child not found"
-        );
-    }
-
-
-
-
-    const allowed =
-
+  const allowed =
     // center head
-    user.role==="center_head"
-
-
-    ||
-
+    user.role === "center_head" ||
     // lead therapist
-    user.role==="lead_therapist"
-
-
-    ||
-
+    user.role === "lead_therapist" ||
     // session therapist
-    (
-        user.role==="therapist"
-        &&
-        session.therapist_id.toString()
-        ===user.sub
-    )
-
-
-    ||
-
+    (user.role === "therapist" &&
+      session.therapist_id.toString() === user.sub) ||
     // child's parent
-    (
-        user.role==="parent"
-        &&
-        child.parent_id.toString()
-        ===user.sub
-    );
+    (user.role === "parent" && child.parent_id.toString() === user.sub);
 
+  if (!allowed) {
+    throw new AppError("FORBIDDEN", "Access denied");
+  }
 
-
-    if(!allowed)
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "Access denied"
-        );
-    }
-
-
-
-    return session.notes ?? null;
-
+  return session.notes ?? null;
 }
 
-
-
-
-
-
-
-
 export async function deleteNotes(
+  sessionId: string,
 
-    sessionId:string,
+  user: AuthPayload
+) {
+  if (user.role !== "therapist") {
+    throw new AppError("FORBIDDEN", "Only therapists can delete notes");
+  }
 
-    user:AuthPayload
+  const session = await SessionModel.findById(sessionId);
 
-){
+  if (!session) {
+    throw new AppError("NOT_FOUND", "Session not found");
+  }
 
+  if (session.therapist_id.toString() !== user.sub) {
+    throw new AppError("FORBIDDEN", "Not your session");
+  }
 
-    if(user.role !== "therapist")
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "Only therapists can delete notes"
-        );
-    }
+  session.notes = undefined;
 
+  await session.save();
 
-
-    const session =
-    await SessionModel.findById(sessionId);
-
-
-
-    if(!session)
-    {
-        throw new AppError(
-            "NOT_FOUND",
-            "Session not found"
-        );
-    }
-
-
-
-    if(
-        session.therapist_id.toString()
-        !==user.sub
-    )
-    {
-        throw new AppError(
-            "FORBIDDEN",
-            "Not your session"
-        );
-    }
-
-
-
-    session.notes = undefined;
-
-
-    await session.save();
-
-
-
-    return {
-        message:"Notes deleted successfully"
-    };
-
+  return {
+    message: "Notes deleted successfully",
+  };
 }

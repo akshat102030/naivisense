@@ -42,6 +42,7 @@ export interface ISession extends Document {
   child_id:           mongoose.Types.ObjectId;
   therapist_id:       mongoose.Types.ObjectId;
   scheduled_at:       Date;
+  end_at:             Date;
   type:               'speech' | 'ot' | 'behavior' | 'special_ed';
   mode:               'online' | 'offline';
   duration_min:       number;
@@ -95,8 +96,9 @@ const sessionSchema = new Schema<ISession>(
   { timestamps: true },
 );
 
-sessionSchema.index({ therapist_id: 1, scheduled_at: -1 });
-sessionSchema.index({ child_id:     1, scheduled_at: -1 });
+sessionSchema.index({ therapist_id: 1, scheduled_at: -1, end_at: 1, status: 1 });
+sessionSchema.index({ child_id:      1, scheduled_at: -1, end_at: 1, status: 1 });
+
 // 1. Virtual field setup (adds attendance dynamically to session response)
 sessionSchema.virtual('attendance', {
   ref: 'Attendance',          // Target model (AttendanceModel)

@@ -56,8 +56,9 @@ router.delete(
 );
 
 router.get(
-    "/auth",
-    GoogleCtrl.auth
+  "/auth",
+  requireAuth,  
+  GoogleCtrl.auth
 );
 
 export default router;

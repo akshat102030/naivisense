@@ -17,6 +17,62 @@ import type {
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
 
 
+const BREAK_TIME = 10;
+
+async function checkTherapistAvailability(
+  therapistId: string,
+
+  requestedStart: Date,
+
+  requestedEnd: Date,
+
+  excludeSessionId?: string
+) {
+  const busyStart = new Date(requestedStart.getTime() - BREAK_TIME * 60000);
+
+  const busyEnd = new Date(requestedEnd.getTime() + BREAK_TIME * 60000);
+
+  const conflict = await SessionModel.findOne({
+    therapist_id: therapistId,
+
+    status: "scheduled",
+
+    ...(excludeSessionId && {
+      _id: { $ne: excludeSessionId },
+    }),
+
+    scheduled_at: {
+      $lt: busyEnd,
+    },
+
+    end_at: {
+      $gt: busyStart,
+    },
+  });
+
+  if (!conflict) {
+    return;
+  }
+
+  const beforeTime = new Date(
+    new Date(conflict.scheduled_at).getTime() -
+      BREAK_TIME * 60000 -
+      (requestedEnd.getTime() - requestedStart.getTime())
+  );
+
+  const afterTime = new Date(
+    new Date(conflict.end_at).getTime() + BREAK_TIME * 60000
+  );
+
+  throw new AppError(
+    "CONFLICT",
+
+    `Therapist already has another session.
+Schedule before ${beforeTime.toLocaleTimeString()}
+or after ${afterTime.toLocaleTimeString()}.`
+  );
+}
+
 export async function createSession(
   input: CreateSessionInput,
   user: AuthPayload
@@ -34,15 +90,35 @@ export async function createSession(
     throw new AppError("NOT_FOUND", "Child not found");
   }
 
+  const scheduledAt = input.scheduled_at
+    ? new Date(input.scheduled_at)
+    : new Date();
+
+  const duration = input.duration_min ?? 45;
+
+  const endAt = new Date(scheduledAt.getTime() + duration * 60_000);
+
+  await checkTherapistAvailability(user.sub, scheduledAt, endAt);
+
   const session = await SessionModel.create({
     ...input,
     therapist_id: user.sub,
-    scheduled_at: input.scheduled_at
-      ? new Date(input.scheduled_at)
-      : new Date(),
+    scheduled_at: scheduledAt,
+    end_at: endAt,
   });
 
   if (input.mode === "online" && child) {
+    const center = await CenterProfileModel.findOne({
+      user_id: child.center_id,
+    });
+
+    if (!center?.google_calendar?.refresh_token) {
+      throw new AppError(
+        "BAD_REQUEST",
+        "Center head must connect Google Calendar first before creating online sessions"
+      );
+    }
+    
     const [parent, therapist] = await Promise.all([
       UserModel.findById(child.parent_id).lean(),
       UserModel.findById(user.sub).lean(),
