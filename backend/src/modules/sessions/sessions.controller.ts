@@ -1,5 +1,5 @@
 import * as SessionService  from './sessions.service';
-import { CreateSessionSchema, SubmitNotesSchema, UpdateSessionSchema} from './sessions.schema'; // Added GeofenceAttendanceSchema
+import { CreateSessionSchema, SubmitNotesSchema, UpdateSessionSchema } from './sessions.schema';
 import { AppError }          from '../../middleware/error';
 import { asyncHandler }      from '../../utils/http';
 
@@ -42,20 +42,34 @@ export const upcoming = asyncHandler(async (req, res) => {
   res.json(sessions);
 });
 
+//  attendance check list API
 export const list = asyncHandler(async (req, res) => {
   const { childId } = req.query;
   if (!childId || typeof childId !== 'string') {
     throw new AppError('INVALID_INPUT', 'childId query param is required');
   }
   const sessions = await SessionService.listSessions(childId, req.user!);
+  
+  // Isse har session ke sath uski attendance ka dynamic data link hokar frontend par jayega
+  if (sessions && sessions.length > 0) {
+    await Promise.all(sessions.map((s: any) => s.populate('attendance')));
+  }
+  
   res.json(sessions);
 });
 
+//  attendance check next session API
 export const nextSession = asyncHandler(async (req, res) => {
   const { childId } = req.query;
   if (!childId || typeof childId !== 'string') {
     throw new AppError('INVALID_INPUT', 'childId query param is required');
   }
   const session = await SessionService.getNextSession(childId, req.user!);
+  
+  // as soon as next scheduled session is fetched, populate its attendance data
+  if (session) {
+    await (session as any).populate('attendance');
+  }
+
   res.json(session);
 });

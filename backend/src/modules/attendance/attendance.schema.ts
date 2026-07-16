@@ -3,7 +3,7 @@ import { z } from 'zod';
 // 1. Schema for Parent Check-In
 export const ParentCheckInSchema = z.object({
   child_id:   z.string().length(24),
-  session_id: z.string().length(24),
+  session_id: z.string().length(24).optional(),
   date:       z.string().datetime({ offset: true }),
   
   status:     z.enum(['pending_approval', 'present', 'absent']).optional(),
