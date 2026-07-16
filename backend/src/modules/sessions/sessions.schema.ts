@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const CreateSessionSchema = z.object({
   child_id:     z.string().length(24),
   scheduled_at: z.string().datetime({ offset: true }).optional(),
+  end_at:       z.string().datetime({ offset: true }).optional(),
   type:         z.enum(['speech', 'ot', 'behavior', 'special_ed']),
   mode:         z.enum(['online', 'offline']).default('offline'),
   duration_min: z.number().int().min(15).max(180).default(45),
@@ -28,6 +29,10 @@ export const SubmitNotesSchema = z.object({
 
 export const UpdateSessionSchema = z.object({
   scheduled_at: z.string()
+    .datetime({ offset: true })
+    .optional(),
+
+  end_at: z.string()
     .datetime({ offset: true })
     .optional(),
 

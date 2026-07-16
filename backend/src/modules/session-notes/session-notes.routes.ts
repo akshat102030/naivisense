@@ -44,11 +44,6 @@ router.patch(
 
 
 
-// Delete notes
-router.delete(
-    "/:sessionId/notes",
-    removeNotes
-);
 
 
 

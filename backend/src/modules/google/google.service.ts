@@ -1,130 +1,81 @@
-import { google } from 'googleapis';
-import { AppError } from '../../middleware/error';
-import { env }    from '../../config/env';
+import { google } from "googleapis";
+import { AppError } from "../../middleware/error";
+import { env } from "../../config/env";
 import { createOAuthClient } from "./google.oauth";
 import { encrypt, decrypt } from "../../utils/crypto";
 import { CenterProfileModel } from "../../models/center-profile.model";
 
-export async function handleGoogleCallback(
-    code: string,
-    centerHeadId: string
-) {
+export async function handleGoogleCallback(code: string, centerHeadId: string) {
+  const client = createOAuthClient();
 
-    const client = createOAuthClient();
+  const { tokens } = await client.getToken(code);
 
+  console.log(tokens);
 
-    const { tokens } =
-        await client.getToken(code);
+  if (!tokens.refresh_token) {
+    throw new Error("No refresh token received");
+  }
 
-    console.log(tokens);
+  client.setCredentials({
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+  });
 
+  const oauth2 = google.oauth2({
+    auth: client,
 
-    if (!tokens.refresh_token) {
+    version: "v2",
+  });
 
-        throw new Error(
-            "No refresh token received"
-        );
+  const userInfo = await oauth2.userinfo.get();
 
+  console.log("CONNECTED GOOGLE ACCOUNT:", userInfo.data.email);
+
+  const encryptedToken = encrypt(tokens.refresh_token);
+
+  const profile = await CenterProfileModel.findOneAndUpdate(
+    {
+      user_id: centerHeadId,
+    },
+
+    {
+      google_calendar: {
+        google_email: userInfo.data.email,
+
+        refresh_token: encryptedToken,
+
+        connected_at: new Date(),
+      },
+    },
+
+    {
+      new: true,
     }
+  );
 
+  if (!profile) {
+    throw new Error("Center profile not found");
+  }
 
-    // IMPORTANT
-    client.setCredentials({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-    });
-
-
-
-    const oauth2 = google.oauth2({
-
-        auth: client,
-
-        version: "v2"
-
-    });
-
-
-    const userInfo =
-        await oauth2.userinfo.get();
-
-
-
-    console.log(
-        "CONNECTED GOOGLE ACCOUNT:",
-        userInfo.data.email
-    );
-
-
-
-    const encryptedToken =
-        encrypt(tokens.refresh_token);
-
-
-
-    const profile =
-        await CenterProfileModel.findOneAndUpdate(
-
-            {
-                user_id:centerHeadId
-            },
-
-            {
-
-                google_calendar: {
-
-                    google_email:
-                    userInfo.data.email,
-
-
-                    refresh_token:
-                    encryptedToken,
-
-
-                    connected_at:
-                    new Date()
-
-                }
-
-            },
-
-            {
-                new:true
-            }
-
-        );
-
-
-
-    if(!profile){
-
-        throw new Error(
-            "Center profile not found"
-        );
-
-    }
-
-
-    return {
-        email:userInfo.data.email
-    };
-
+  return {
+    email: userInfo.data.email,
+  };
 }
 
 export interface CalendarEventPayload {
-  sessionId:       string;
-  centerId:         string;
-  scheduledAt:     Date | string;
-  durationMin:     number;
-  childName:       string;
-  parentEmail?:    string;
+  sessionId: string;
+  centerId: string;
+  scheduledAt: Date | string;
+  durationMin: number;
+  childName: string;
+  parentEmail?: string;
   therapistEmail?: string;
 }
 
 export interface CalendarEventResult {
   calendar_event_id: string;
-  meeting_link:      string;
-  calendar_provider: 'google' | 'manual';
+  meeting_link: string;
+  calendar_provider: "google" | "manual";
 }
 
 export interface UpdateCalendarEventPayload {
@@ -141,7 +92,7 @@ type CalendarClient = ReturnType<typeof google.calendar>;
 type MeetClient = ReturnType<typeof google.meet>;
 
 function normalizePrivateKey(key: string): string {
-  return key.replace(/\\n/g, '\n');
+  return key.replace(/\\n/g, "\n");
 }
 
 function getGoogleAuth() {
@@ -152,14 +103,21 @@ function getGoogleAuth() {
       scopes: [
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/userinfo.email",
-        "https://www.googleapis.com/auth/userinfo.profile"
+        "https://www.googleapis.com/auth/userinfo.profile",
       ],
       subject: env.GOOGLE_IMPERSONATE_EMAIL,
     });
   }
 
-  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN) {
-    const auth = new google.auth.OAuth2(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET);
+  if (
+    env.GOOGLE_CLIENT_ID &&
+    env.GOOGLE_CLIENT_SECRET &&
+    env.GOOGLE_REFRESH_TOKEN
+  ) {
+    const auth = new google.auth.OAuth2(
+      env.GOOGLE_CLIENT_ID,
+      env.GOOGLE_CLIENT_SECRET
+    );
     auth.setCredentials({ refresh_token: env.GOOGLE_REFRESH_TOKEN });
     return auth;
   }
@@ -167,86 +125,103 @@ function getGoogleAuth() {
   return null;
 }
 
-async function getCalendarClient(
-  centerId:string
-): Promise<CalendarClient> {
+// google.service.ts - Fixed getCalendarClient with proper TypeScript
 
+export async function getCalendarClient(centerId: string): Promise<CalendarClient> {
+  const profile = await CenterProfileModel.findOne({
+    user_id: centerId,
+  });
 
-  const profile =
-    await CenterProfileModel.findOne({
-      user_id:centerId
-    });
-
-
-  if(!profile){
-
-    throw new AppError(
-      "NOT_FOUND",
-      "Center profile not found"
-    );
-
+  if (!profile) {
+    throw new AppError("NOT_FOUND", "Center profile not found");
   }
 
-
-  if(
-    !profile.google_calendar ||
-    !profile.google_calendar.refresh_token
-  ){
-
-    throw new AppError(
-      "BAD_REQUEST",
-      "Google Calendar not connected"
-    );
-
+  if (!profile.google_calendar || !profile.google_calendar.refresh_token) {
+    throw new AppError("BAD_REQUEST", "Google Calendar not connected");
   }
 
-
-  const refreshToken =
-    decrypt(
-      profile.google_calendar.refresh_token
-    );
-
-
-  const client =
-      createOAuthClient();
-
-
+  const refreshToken = decrypt(profile.google_calendar.refresh_token);
+  const client = createOAuthClient();
+  
+  // Set initial credentials
   client.setCredentials({
-
-    refresh_token: refreshToken
-
+    refresh_token: refreshToken,
   });
 
+  // ✅ Type-safe token refresh handling
+  try {
+    // Check if we have an access token
+    if (client.credentials.access_token) {
+      try {
+        await client.getTokenInfo(client.credentials.access_token);
+        // Token is valid, return client
+        return google.calendar({
+          version: "v3",
+          auth: client,
+        });
+      } catch (tokenError) {
+        // Token expired or invalid, proceed to refresh
+        console.log("Access token expired, refreshing...");
+      }
+    }
+    
+    const { credentials } = await client.refreshAccessToken();
+    client.setCredentials(credentials);
+    
+    // ✅ Store new refresh token if provided
+    if (credentials.refresh_token) {
+      const encryptedToken = encrypt(credentials.refresh_token);
+      await CenterProfileModel.findOneAndUpdate(
+        { user_id: centerId },
+        {
+          "google_calendar.refresh_token": encryptedToken,
+          "google_calendar.connected_at": new Date(),
+        }
+      );
+    }
 
-  return google.calendar({
-
-    version:"v3",
-
-    auth:client
-
-  });
-
+    return google.calendar({
+      version: "v3",
+      auth: client,
+    });
+  } catch (refreshError) {
+    console.error("Failed to refresh token:", refreshError);
+    throw new AppError(
+      "UNAUTHORIZED",
+      "Google Calendar token expired. Please reconnect your Google Calendar."
+    );
+  }
 }
 
 function getMeetClient(): MeetClient | null {
   const auth = getGoogleAuth();
-  return auth ? google.meet({ version: 'v2', auth }) : null;
+  return auth ? google.meet({ version: "v2", auth }) : null;
 }
 
 function fallbackResult(sessionId: string): CalendarEventResult {
   return {
     calendar_event_id: `naivisense-event-${sessionId}`,
-    meeting_link:      `https://meet.naivisense.app/session/${sessionId}`,
-    calendar_provider: 'manual',
+    meeting_link: `https://meet.naivisense.app/session/${sessionId}`,
+    calendar_provider: "manual",
   };
 }
 
 function eventMeetingLink(event: {
   hangoutLink?: string | null;
-  conferenceData?: { entryPoints?: Array<{ entryPointType?: string | null; uri?: string | null }> } | null;
+  conferenceData?: {
+    entryPoints?: Array<{
+      entryPointType?: string | null;
+      uri?: string | null;
+    }>;
+  } | null;
 }): string | undefined {
-  return event.hangoutLink ?? event.conferenceData?.entryPoints
-    ?.find((entry) => entry.entryPointType === 'video')?.uri ?? undefined;
+  return (
+    event.hangoutLink ??
+    event.conferenceData?.entryPoints?.find(
+      (entry) => entry.entryPointType === "video"
+    )?.uri ??
+    undefined
+  );
 }
 
 export async function createMeetingLink(
@@ -255,7 +230,11 @@ export async function createMeetingLink(
 ): Promise<string> {
   try {
     const calendar = await getCalendarClient(centerId);
-    
+
+    if (!calendar) {
+      return fallbackResult(sessionId).meeting_link;
+    }
+
     // Create a calendar event with meet
     const event = await calendar.events.insert({
       calendarId: "primary",
@@ -273,159 +252,109 @@ export async function createMeetingLink(
           createRequest: {
             requestId: `naivisense-${sessionId}`,
             conferenceSolutionKey: {
-              type: "hangoutsMeet"
-            }
-          }
-        }
-      }
+              type: "hangoutsMeet",
+            },
+          },
+        },
+      },
     });
-    
-    return eventMeetingLink(event.data) || fallbackResult(sessionId).meeting_link;
+
+    const meetLink =
+      event.data.hangoutLink ||
+      event.data.conferenceData?.entryPoints?.find(
+        (entry) => entry.entryPointType === "video"
+      )?.uri;
+
+    if (!meetLink) {
+      throw new Error("No Meet link generated");
+    }
+
+    return meetLink;
   } catch (error) {
+    console.error("Failed to create Meet link:", error);
     return fallbackResult(sessionId).meeting_link;
   }
 }
 
 export async function syncCalendarEvent(
-payload: CalendarEventPayload
+  payload: CalendarEventPayload
 ): Promise<CalendarEventResult> {
+  const calendar = await getCalendarClient(payload.centerId);
 
+  const scheduledAt = new Date(payload.scheduledAt);
 
-const calendar =
-await getCalendarClient(
-    payload.centerId
-);
+  const endAt = new Date(scheduledAt.getTime() + payload.durationMin * 60_000);
 
+  const attendees = [payload.parentEmail, payload.therapistEmail]
+    .filter((email): email is string => Boolean(email))
+    .map((email) => ({
+      email,
+    }));
 
+  const event = await calendar.events.insert({
+    calendarId: "primary",
 
-const scheduledAt =
-new Date(payload.scheduledAt);
+    conferenceDataVersion: 1,
 
+    sendUpdates: attendees.length ? "all" : "none",
 
+    requestBody: {
+      summary: `NaiviSense session - ${payload.childName}`,
 
-const endAt =
-new Date(
- scheduledAt.getTime()
- +
- payload.durationMin * 60_000
-);
+      description: "Therapy session scheduled from NaiviSense.",
 
+      start: {
+        dateTime: scheduledAt.toISOString(),
+      },
 
+      end: {
+        dateTime: endAt.toISOString(),
+      },
 
-const attendees =
-[
- payload.parentEmail,
- payload.therapistEmail
-]
-.filter(
-(email): email is string =>
-Boolean(email)
-)
-.map(email=>({
- email
-}));
+      attendees,
 
+      conferenceData: {
+        createRequest: {
+          requestId: `naivisense-${payload.sessionId}`,
 
+          conferenceSolutionKey: {
+            type: "hangoutsMeet",
+          },
+        },
+      },
+    },
+  });
 
-const event =
-await calendar.events.insert({
+  return {
+    calendar_event_id: event.data.id!,
 
-calendarId:"primary",
+    meeting_link:
+      eventMeetingLink(event.data) ??
+      fallbackResult(payload.sessionId).meeting_link,
 
-conferenceDataVersion:1,
-
-sendUpdates:
-attendees.length
-? "all"
-: "none",
-
-
-requestBody:{
-
-
-summary:
-`NaiviSense session - ${payload.childName}`,
-
-
-description:
-"Therapy session scheduled from NaiviSense.",
-
-
-start:{
- dateTime:
- scheduledAt.toISOString()
-},
-
-
-end:{
- dateTime:
- endAt.toISOString()
-},
-
-
-attendees,
-
-
-conferenceData:{
-
-createRequest:{
-
-requestId:
-`naivisense-${payload.sessionId}`,
-
-conferenceSolutionKey:{
-type:"hangoutsMeet"
+    calendar_provider: "google",
+  };
 }
 
-}
-
-}
-
-
-}
-
-});
-
-
-
-return {
-
-
-calendar_event_id:
-event.data.id!,
-
-
-meeting_link:
-eventMeetingLink(event.data)
-??
-fallbackResult(
-payload.sessionId
-).meeting_link,
-
-
-calendar_provider:
-"google"
-
-
-};
-
-
-}
-
-export async function fetchMeetAttendance(meetingLink: string, scheduledAt: Date | string) {
+export async function fetchMeetAttendance(
+  meetingLink: string,
+  scheduledAt: Date | string
+) {
   const meet = getMeetClient();
   if (!meet) {
-    throw new AppError('SERVICE_UNAVAILABLE', 'Google Meet attendance is not configured');
+    throw new AppError(
+      "SERVICE_UNAVAILABLE",
+      "Google Meet attendance is not configured"
+    );
   }
 
-  const meetingCode = meetingLink
-    .split('/')
-    .pop()
-    ?.replace(/\?.*$/, '')
-    .trim();
+  const meetingCode = meetingLink.split("/").pop()?.replace(/\?.*$/, "").trim();
 
   if (!meetingCode) {
-    throw new AppError('INVALID_INPUT', 'Meeting link does not contain a meeting code');
+    throw new AppError(
+      "INVALID_INPUT",
+      "Meeting link does not contain a meeting code"
+    );
   }
 
   const start = new Date(scheduledAt);
@@ -448,7 +377,11 @@ export async function fetchMeetAttendance(meetingLink: string, scheduledAt: Date
   });
 
   const participantNames = (participants.data.participants ?? [])
-    .map((participant) => participant.signedinUser?.displayName ?? participant.anonymousUser?.displayName)
+    .map(
+      (participant) =>
+        participant.signedinUser?.displayName ??
+        participant.anonymousUser?.displayName
+    )
     .filter((name): name is string => Boolean(name));
 
   return {
@@ -460,7 +393,6 @@ export async function fetchMeetAttendance(meetingLink: string, scheduledAt: Date
 export async function updateCalendarEvent(
   payload: UpdateCalendarEventPayload
 ): Promise<CalendarEventResult> {
-
   const calendar = await getCalendarClient(payload.centerId);
 
   if (!calendar) {
@@ -472,28 +404,20 @@ export async function updateCalendarEvent(
 
   const scheduledAt = new Date(payload.scheduledAt);
 
-  const endAt = new Date(
-    scheduledAt.getTime() +
-    payload.durationMin * 60_000
-  );
+  const endAt = new Date(scheduledAt.getTime() + payload.durationMin * 60_000);
 
-  const attendees = [
-    payload.parentEmail,
-    payload.therapistEmail,
-  ]
+  const attendees = [payload.parentEmail, payload.therapistEmail]
     .filter((email): email is string => Boolean(email))
     .map((email) => ({ email }));
 
   const updatedEvent = await calendar.events.update({
-
-    calendarId: env.GOOGLE_CALENDAR_ID,
+    calendarId: "primary",
 
     eventId: payload.eventId,
 
     sendUpdates: "all",
 
     requestBody: {
-
       summary: `NaiviSense session - ${payload.childName}`,
 
       description: "Therapy session updated from NaiviSense.",
@@ -511,12 +435,9 @@ export async function updateCalendarEvent(
   });
 
   return {
+    calendar_event_id: updatedEvent.data.id ?? payload.eventId,
 
-    calendar_event_id:
-      updatedEvent.data.id ?? payload.eventId,
-
-    meeting_link:
-      eventMeetingLink(updatedEvent.data) ?? "",
+    meeting_link: eventMeetingLink(updatedEvent.data) ?? "",
 
     calendar_provider: "google",
   };
@@ -526,7 +447,6 @@ export async function deleteCalendarEvent(
   eventId: string,
   centerId: string
 ): Promise<void> {
-
   const calendar = await getCalendarClient(centerId);
 
   if (!calendar) {
@@ -537,11 +457,10 @@ export async function deleteCalendarEvent(
   }
 
   await calendar.events.delete({
-    calendarId: env.GOOGLE_CALENDAR_ID,
+    calendarId: "primary",
     eventId,
     sendUpdates: "all",
   });
-
 }
 
 export function getGoogleAuthUrl(centerId: string) {
@@ -553,10 +472,8 @@ export function getGoogleAuthUrl(centerId: string) {
     scope: [
       "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/userinfo.profile"
+      "https://www.googleapis.com/auth/userinfo.profile",
     ],
-    state: centerId
+    state: centerId,
   });
 }
-
-
