@@ -4,6 +4,7 @@ import { SessionModel }    from '../../models/session.model';
 import { AppError }        from '../../middleware/error';
 import type { AuthPayload } from '../../middleware/auth';
 import { fetchMeetAttendance } from '../google/google.service';
+import { CenterProfileModel } from '../../models/center-profile.model'; // Added CenterProfileModel import
 import type { ParentCheckInInput, TherapistApproveInput, SyncMeetAttendanceInput } from './attendance.schema';
 
 const THERAPIST_ROLES = ['therapist', 'center_head', 'lead_therapist'] as const;
@@ -25,31 +26,33 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 
-//  1. PARENT CHECK-IN SERVICE
+// 1. PARENT CHECK-IN SERVICE (NO TIME LIMIT, AUTOMATIC OR MANUAL OVERRIDE BYPASS)
 
 export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload) {
-  // only parent can trigger check-in
+  // Only parents can trigger check-in
   if (user.role !== 'parent') {
     throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
   }
 
   const session = await SessionModel.findById(input.session_id).lean();
   if (!session) {
-    throw new AppError('NOT_FOUND', 'Session not found for geofence validation');
+    throw new AppError('NOT_FOUND', 'Session not found for attendance validation');
   }
 
-  // 1. Time Check (±15 Minutes Range)
-  const currentTime = new Date().getTime();
-  const scheduledTime = new Date(session.scheduled_at).getTime();
-  const fifteenMinutesInMs = 15 * 60 * 1000;
+  // Prevent duplicate attendance entries for the same child, session, and date
+  const existingAttendance = await AttendanceModel.findOne({
+    child_id: input.child_id,
+    session_id: input.session_id
+  });
 
-  if (Math.abs(currentTime - scheduledTime) > fifteenMinutesInMs) {
-    throw new AppError('BAD_REQUEST', 'Attendance can only be marked within ±15 minutes of the scheduled session time');
+  if (existingAttendance) {
+    throw new AppError('BAD_REQUEST', 'Attendance is already registered for this session');
   }
 
-  // 2. Geofence Location Check (50 Meters Radius)
-  const centerLat = 22.7196; 
-  const centerLng = 75.8577;
+  // Calculate geofence distance
+  const centerProfile = await CenterProfileModel.findOne().lean(); // Or fetch by user_id/center_id linked to session
+const centerLat = centerProfile?.latitude ?? 22.7196;
+const centerLng = centerProfile?.longitude ?? 75.8577;
 
   const distance = getDistanceInMeters(
     input.location.lat,
@@ -58,70 +61,61 @@ export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload
     centerLng
   );
 
-  if (distance > 50) {
-    throw new AppError('BAD_REQUEST', `You are outside the permitted center location radius (${Math.round(distance)}m away)`);
-  }
+  // If inside 50m, source is marked as 'geo' (auto-present). Otherwise, it is recorded as a manual check-in override.
+  const isWithinGeofence = distance <= 50;
+  const source = isWithinGeofence ? 'geo' : 'manual_override';
 
-  // 3. check for existing attendance for the same session and child
-  const existingAttendance = await AttendanceModel.findOne({
-    child_id: input.child_id,
-    session_id: input.session_id
-  });
-
-  if (existingAttendance) {
-    throw new AppError('BAD_REQUEST', 'Check-in already registered for this session');
-  }
-
-  // 4. Entry creation with 'pending_approval' status
+  // Entry is created directly with 'present' status
   return AttendanceModel.create({
     child_id: input.child_id,
     session_id: input.session_id,
     date: new Date(input.date),
-    status: 'pending_approval', // waits for therapist approval
-    source: 'geo',
+    status: 'present', 
+    source: source,
     location: input.location,
     notes: input.notes,
-    marked_by: user.sub, // has the id of parent for tracking
+    marked_by: user.sub, // References parent's ID
   });
 }
 
 
-//  2. THERAPIST BULK APPROVE SERVICE
+// 2. THERAPIST UNMARK / UPDATE STATUS SERVICE
 
-export async function therapistApprove(input: TherapistApproveInput, user: AuthPayload) {
-  // only therapist and center head can approve
+export async function updateAttendanceStatus(input: TherapistApproveInput, user: AuthPayload) {
+  // Only therapists and center heads can modify attendance status
   if (!(THERAPIST_ROLES as readonly string[]).includes(user.role)) {
-    throw new AppError('FORBIDDEN', 'Only therapists and center heads can approve attendance');
+    throw new AppError('FORBIDDEN', 'Only therapists and center heads can update attendance status');
   }
 
-  // Bulk update
+  // Updates status to target status 
+  const targetStatus = input.status || 'present';
+
   const result = await AttendanceModel.updateMany(
     {
       _id: { $in: input.attendance_ids },
-      session_id: input.session_id,
-      status: 'pending_approval'
+      session_id: input.session_id
     },
     {
       $set: {
-        status: 'present',
-        marked_by: user.sub, // Ab 'marked_by' updated to therapist
+        status: targetStatus,
+        marked_by: user.sub, // Tracks the last admin/therapist who performed the action
       }
     }
   );
 
   if (result.matchedCount === 0) {
-    throw new AppError('NOT_FOUND', 'No pending check-ins found for approval');
+    throw new AppError('NOT_FOUND', 'No matching attendance records found');
   }
 
   return {
-    message: `${result.modifiedCount} attendance records successfully approved and marked present`,
+    message: `Successfully updated ${result.modifiedCount} attendance records to status: ${targetStatus}`,
     matchedCount: result.matchedCount,
     modifiedCount: result.modifiedCount
   };
 }
 
 
-//  3. OTHER SERVICES (AS-IS KEPT SAFELY)
+// 3. GOOGLE MEET SYNC SERVICE
 
 export async function syncMeetAttendance(input: SyncMeetAttendanceInput, user: AuthPayload) {
   if (!(THERAPIST_ROLES as readonly string[]).includes(user.role)) {
@@ -163,6 +157,9 @@ export async function syncMeetAttendance(input: SyncMeetAttendanceInput, user: A
     { upsert: true, new: true },
   );
 }
+
+
+// 4. LIST ATTENDANCE SERVICE
 
 export async function listAttendance(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
