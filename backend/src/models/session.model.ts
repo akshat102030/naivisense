@@ -1,58 +1,41 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISessionNotes {
-
   mood?: 
     | "sad"
     | "calm"
     | "happy"
     | "excited";
 
-
   attention_score?: number;
-
 
   communication_score?: number;
 
-
   motor_score?: number;
-
 
   behavior_score?: number;
 
-
   activities?: string[];
-
 
   what_worked?: string;
 
-
   what_didnt_work?: string;
-
 
   homework?: string;
 
-
   notes?: string;
-
 
   observations?: string;
 
-
   progress_log?: string;
-
 
   tantrums_observed?: string;
 
-
   resolution_notes?: string;
-
 
   follow_up_required?: boolean;
 
-
   submitted_at: Date;
-
 }
 
 export interface ISession extends Document {
@@ -67,7 +50,6 @@ export interface ISession extends Document {
   calendar_event_id?: string;
   calendar_provider?: 'google' | 'manual';
   calendar_synced_at?: Date;
-  attendance_source?: 'google_meet' | 'manual' | 'geo';
   offline_location?:  string;
   notes?:             ISessionNotes;
 }
@@ -107,7 +89,6 @@ const sessionSchema = new Schema<ISession>(
     calendar_event_id:  { type: String },
     calendar_provider:  { type: String, enum: ['google', 'manual'] },
     calendar_synced_at: { type: Date },
-    attendance_source:  { type: String, enum: ['google_meet', 'manual', 'geo'] },
     offline_location:   { type: String },
     notes:              { type: sessionNotesSchema },
   },

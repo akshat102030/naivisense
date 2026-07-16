@@ -1,7 +1,6 @@
 import { SessionModel } from "../../models/session.model";
 import { ChildModel } from "../../models/child.model";
 import { UserModel } from "../../models/user.model";
-import { CenterProfileModel } from "../../models/center-profile.model"; // Added for geofencing coordinates
 import { AppError } from "../../middleware/error";
 import type { AuthPayload } from "../../middleware/auth";
 import { snapshotQueue } from "../../jobs/queues";
@@ -14,10 +13,9 @@ import type {
   CreateSessionInput,
   SubmitNotesInput,
   UpdateSessionInput,
-  GeofenceAttendanceInput,
-} from "./sessions.schema";
+ } from "./sessions.schema";
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
-import { getDistanceInMeters } from "../../utils/distance"; // Added distance utility
+
 
 export async function createSession(
   input: CreateSessionInput,
@@ -270,90 +268,3 @@ export async function getNextSession(childId: string, user: AuthPayload) {
   return next ?? null;
 }
 
-//  NEW CHANGES: GEOFENCE ATTENDANCE CORE BUSINESS LOGIC
-
-export async function markGeofenceAttendance(
-  input: GeofenceAttendanceInput,
-  user: AuthPayload
-) {
-  // 1. Role validation check (sirf parents hi bache ki attendance mark kar sakte hain)
-  if (user.role !== "parent") {
-    throw new AppError(
-      "FORBIDDEN",
-      "Only parents can mark attendance via geofencing"
-    );
-  }
-
-  // 2. Fetch center's coordinates
-  const center = await CenterProfileModel.findOne({
-    user_id: input.center_id,
-  }).lean();
-  if (
-    !center ||
-    (center as any).latitude === undefined ||
-    (center as any).longitude === undefined
-  ) {
-    throw new AppError(
-      "BAD_REQUEST",
-      "Center location settings are not configured yet."
-    );
-  }
-
-  // 3. Distance Check using Haversine Utility
-  const distance = getDistanceInMeters(
-    input.user_latitude,
-    input.user_longitude,
-    (center as any).latitude,
-    (center as any).longitude
-  );
-
-  const allowedRadius = (center as any).radius_meters || 50;
-  if (distance > allowedRadius) {
-    throw new AppError(
-      "BAD_REQUEST",
-      `You are outside the center perimeter. Distance: ${Math.round(
-        distance
-      )} meters away.`
-    );
-  }
-
-  // 4. Find Active Session within the Time Window (+/- 15 Mins)
-  const currentTime = new Date();
-  const fifteenMinsBefore = new Date(currentTime.getTime() - 15 * 60 * 1000);
-  const fifteenMinsAfter = new Date(currentTime.getTime() + 15 * 60 * 1000);
-
-  // Find a session scheduled for this child at this specific timing window
-  const activeSession = await SessionModel.findOne({
-    child_id: input.child_id,
-    mode: "offline", // Offline maps to physical center attendance
-    status: "scheduled",
-    scheduled_at: { $gte: fifteenMinsBefore, $lte: fifteenMinsAfter },
-  });
-
-  if (!activeSession) {
-    throw new AppError(
-      "NOT_FOUND",
-      "No offline session scheduled at this current time slot (+/- 15 mins window)."
-    );
-  }
-
-  // 5. Check if therapist has already completed or marked it (Double check boundary)
-  if (activeSession.status === "completed") {
-    throw new AppError(
-      "BAD_REQUEST",
-      "Attendance has already been recorded for this session."
-    );
-  }
-
-  // 6. Update Status & Attendance Source
-  activeSession.status = "completed";
-  activeSession.attendance_source = "geo";
-  await activeSession.save();
-
-  // 7. Trigger any background data rebuild if needed (copied style from submitNotes)
-  await snapshotQueue.add("rebuild", {
-    childId: activeSession.child_id.toString(),
-  });
-
-  return activeSession;
-}

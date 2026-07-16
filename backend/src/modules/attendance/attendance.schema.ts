@@ -1,22 +1,36 @@
 import { z } from 'zod';
 
-export const MarkAttendanceSchema = z.object({
+// 1. Schema for Parent Check-In
+export const ParentCheckInSchema = z.object({
   child_id:   z.string().length(24),
-  session_id: z.string().length(24).optional(),
+  session_id: z.string().length(24),
   date:       z.string().datetime({ offset: true }),
-  status:     z.enum(['present', 'absent', 'late']),
-  source:     z.enum(['manual', 'google_meet', 'geo']).optional(),
+  
+  status:     z.enum(['pending_approval', 'present', 'absent']).optional(),
+  
+  // Allowing either 'geo' (inside geofence) or 'manual_override' (outside geofence)
+  source:     z.enum(['geo', 'manual_override']).default('geo'), 
+  
   location:   z.object({
     lat:     z.number(),
     lng:     z.number(),
     address: z.string().optional(),
-  }).optional(),
+  }),
   notes:      z.string().max(500).optional(),
+});
+
+// 2. Schema for Therapist Status Update / Unmark
+export const TherapistApproveSchema = z.object({
+  session_id:     z.string().length(24),
+  attendance_ids: z.array(z.string().length(24)),
+  status:         z.enum(['pending_approval', 'present', 'absent']).optional(), // Allows changing status dynamically
 });
 
 export const SyncMeetAttendanceSchema = z.object({
   session_id: z.string().length(24),
 });
 
-export type MarkAttendanceInput = z.infer<typeof MarkAttendanceSchema>;
+// Types Export
+export type ParentCheckInInput = z.infer<typeof ParentCheckInSchema>;
+export type TherapistApproveInput = z.infer<typeof TherapistApproveSchema>;
 export type SyncMeetAttendanceInput = z.infer<typeof SyncMeetAttendanceSchema>;

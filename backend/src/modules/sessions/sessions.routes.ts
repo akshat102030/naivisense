@@ -25,13 +25,5 @@ router.delete(
 );
 
 
-//  NEW CHANGES: GEOFENCE ATTENDANCE ROUTE
-
-// only authenticated parents can send request to this route
-router.post(
-  '/geofence-attendance',
-  requireRole('parent'),
-  Ctrl.handleGeofenceAttendance
-);
 
 export default router;

@@ -50,18 +50,7 @@ export const UpdateSessionSchema = z.object({
   ]).optional(),
 });
 
-
-//geofencing
-
-export const GeofenceAttendanceSchema = z.object({
-  child_id:       z.string().length(24), 
-  center_id:      z.string().length(24), 
-  user_latitude:  z.number(),            // live latitude in number format
-  user_longitude: z.number(),            // live longitude in number format
-});
-
 // Infer types to use in controller
 export type CreateSessionInput = z.infer<typeof CreateSessionSchema>;
 export type SubmitNotesInput   = z.infer<typeof SubmitNotesSchema>;
 export type UpdateSessionInput = z.infer<typeof UpdateSessionSchema>;
-export type GeofenceAttendanceInput = z.infer<typeof GeofenceAttendanceSchema>; // New Type
