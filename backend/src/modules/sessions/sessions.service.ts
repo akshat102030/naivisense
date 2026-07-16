@@ -4,6 +4,7 @@ import { UserModel } from "../../models/user.model";
 import { AppError } from "../../middleware/error";
 import type { AuthPayload } from "../../middleware/auth";
 import { snapshotQueue } from "../../jobs/queues";
+import { CenterProfileModel } from "../../models/center-profile.model";
 import {
   syncCalendarEvent,
   updateCalendarEvent,
