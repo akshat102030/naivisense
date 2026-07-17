@@ -4,7 +4,7 @@ import { SessionModel }    from '../../models/session.model';
 import { AppError }        from '../../middleware/error';
 import type { AuthPayload } from '../../middleware/auth';
 import { fetchMeetAttendance } from '../google/google.service';
-import { CenterProfileModel } from '../../models/center-profile.model'; // Added CenterProfileModel import
+import { CenterProfileModel } from '../../models/center-profile.model'; 
 import type { ParentCheckInInput, TherapistApproveInput, SyncMeetAttendanceInput } from './attendance.schema';
 
 const THERAPIST_ROLES = ['therapist', 'center_head', 'lead_therapist'] as const;
@@ -34,25 +34,28 @@ export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload
     throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
   }
 
-  const session = await SessionModel.findById(input.session_id).lean();
-  if (!session) {
-    throw new AppError('NOT_FOUND', 'Session not found for attendance validation');
-  }
+  //  FIX: Agar session_id bheja hai, tabhi database validation check chalega
+  if (input.session_id) {
+    const session = await SessionModel.findById(input.session_id).lean();
+    if (!session) {
+      throw new AppError('NOT_FOUND', 'Session not found for attendance validation');
+    }
 
-  // Prevent duplicate attendance entries for the same child, session, and date
-  const existingAttendance = await AttendanceModel.findOne({
-    child_id: input.child_id,
-    session_id: input.session_id
-  });
+    // Prevent duplicate attendance entries ONLY if session_id exists
+    const existingAttendance = await AttendanceModel.findOne({
+      child_id: input.child_id,
+      session_id: input.session_id
+    });
 
-  if (existingAttendance) {
-    throw new AppError('BAD_REQUEST', 'Attendance is already registered for this session');
+    if (existingAttendance) {
+      throw new AppError('BAD_REQUEST', 'Attendance is already registered for this session');
+    }
   }
 
   // Calculate geofence distance
-  const centerProfile = await CenterProfileModel.findOne().lean(); // Or fetch by user_id/center_id linked to session
-const centerLat = centerProfile?.latitude ?? 22.7196;
-const centerLng = centerProfile?.longitude ?? 75.8577;
+  const centerProfile = await CenterProfileModel.findOne().lean(); 
+  const centerLat = centerProfile?.latitude ?? 22.7196;
+  const centerLng = centerProfile?.longitude ?? 75.8577;
 
   const distance = getDistanceInMeters(
     input.location.lat,
@@ -68,7 +71,7 @@ const centerLng = centerProfile?.longitude ?? 75.8577;
   // Entry is created directly with 'present' status
   return AttendanceModel.create({
     child_id: input.child_id,
-    session_id: input.session_id,
+    session_id: input.session_id || null, // FIX: session_id nahi hone par null set hoga
     date: new Date(input.date),
     status: 'present', 
     source: source,
