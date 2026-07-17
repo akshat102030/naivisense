@@ -52,10 +52,10 @@ export const list = asyncHandler(async (req, res) => {
   const sessions = await SessionService.listSessions(childId, req.user!);
   
   // Isse har session ke sath uski attendance ka dynamic data link hokar frontend par jayega
-  if (sessions && sessions.length > 0) {
-    await Promise.all(sessions.map((s: any) => s.populate('attendance')));
-  }
-  
+//  ISKO DAAL DO:
+if (sessions && sessions.length > 0) {
+  await SessionModel.populate(sessions, { path: 'attendance' });
+}
   res.json(sessions);
 });
 
@@ -69,8 +69,9 @@ export const nextSession = asyncHandler(async (req, res) => {
   
   // as soon as next scheduled session is fetched, populate its attendance data
   if (session) {
-    await SessionModel.populate(session, { path: 'attendance' })
-  }
+  await (session as any).populate('attendance');
+}
+res.json(session);
 
-  res.json(session);
+  
 });
