@@ -2,6 +2,7 @@ import * as SessionService  from './sessions.service';
 import { CreateSessionSchema, SubmitNotesSchema, UpdateSessionSchema } from './sessions.schema';
 import { AppError }          from '../../middleware/error';
 import { asyncHandler }      from '../../utils/http';
+import { SessionModel } from '../../models/session.model';
 
 export const create = asyncHandler(async (req, res) => {
   const input   = CreateSessionSchema.parse(req.body);
@@ -68,7 +69,7 @@ export const nextSession = asyncHandler(async (req, res) => {
   
   // as soon as next scheduled session is fetched, populate its attendance data
   if (session) {
-    await (session as any).populate('attendance');
+    await SessionModel.populate(session, { path: 'attendance' })
   }
 
   res.json(session);
