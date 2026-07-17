@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:naivisense/core/theme/app_colors.dart';
 import 'package:naivisense/core/utils/responsive.dart';
+import 'package:naivisense/data/models/assessment.dart';
 
 class AssessmentHistoryRow extends StatelessWidget {
-  final dynamic assessment;
+  final AssessmentModel assessment;
   final VoidCallback onTap;
 
   const AssessmentHistoryRow({
@@ -16,10 +17,17 @@ class AssessmentHistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = Responsive(context);
 
-    final score = (assessment.overallScorePct as double?) ?? 0.0;
-    final risk = assessment.riskLevel as String? ?? 'amber';
-    final type = assessment.type as String? ?? '';
-    final date = assessment.date as DateTime? ?? DateTime.now();
+    // Show latest assessment if available, otherwise initial.
+    final snapshot = assessment.initial;
+
+    if (snapshot == null) {
+      return const SizedBox.shrink();
+    }
+
+    final score = snapshot.overallScorePct;
+    final risk = snapshot.riskLevel;
+    final type = snapshot.type;
+    final date = snapshot.date;
 
     final riskColor = switch (risk) {
       'green' => AppColors.mintGreen,

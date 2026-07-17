@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../data/models/user.dart';
+import 'package:naivisense/data/repositories/attendance_repository.dart';
+import 'package:naivisense/features/parent/providers/attendance_provider.dart';
+import 'package:naivisense/features/parent/providers/parent_provider.dart';
+
 import '../../../data/models/api/auth_requests.dart';
+import '../../../data/models/user.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/storage_service.dart';
 
@@ -26,12 +30,16 @@ class AuthState {
     UserModel? user,
     String? error,
     bool? loading,
-  }) => AuthState(
-    status: status ?? this.status,
-    user: user ?? this.user,
-    error: error,
-    loading: loading ?? this.loading,
-  );
+    String? token,
+  }) {
+    return AuthState(
+      status: status ?? this.status,
+      user: user ?? this.user,
+      error: error,
+      loading: loading ?? this.loading,
+      token: token ?? this.token,
+    );
+  }
 }
 
 class AuthNotifier extends AsyncNotifier<AuthState> {
@@ -42,11 +50,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> login(String phone, String password) async {
     state = const AsyncValue.loading();
+
     try {
       final auth = await ref
           .read(authRepositoryProvider)
           .login(LoginRequest(phone: phone, password: password));
 
+      // Login successful
       state = AsyncValue.data(
         AuthState(
           status: AuthStatus.authenticated,
@@ -55,6 +65,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         ),
       );
 
+      // if (auth.user.role == 'parent') {
+      //   final children = await ref.read(parentChildrenProvider.future);
+
+      //   for (final child in children) {
+      //     await ref
+      //         .read(attendanceProvider.notifier)
+      //         .markAttendanceForChild(child);
+      //   }
+      // }
     } catch (e) {
       state = AsyncValue.data(
         AuthState(status: AuthStatus.unauthenticated, error: e.toString()),
@@ -64,6 +83,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
+
     state = const AsyncValue.data(
       AuthState(status: AuthStatus.unauthenticated),
     );

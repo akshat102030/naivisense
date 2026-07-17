@@ -1,106 +1,190 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:naivisense/core/theme/app_colors.dart';
 import 'package:naivisense/core/utils/responsive.dart';
-import 'package:naivisense/data/models/child.dart';
-import 'package:naivisense/features/parent/widget/empty_hint.dart';
+import 'package:naivisense/data/models/scheduled_session_model.dart';
 import 'package:naivisense/features/parent/widget/section_header.dart';
 import 'package:naivisense/shared/widgets/app_card.dart';
+import 'package:naivisense/shared/widgets/state_widgets.dart' as sw;
 
 class ScheduledSessions extends StatelessWidget {
-  final ChildModel child;
+  final AsyncValue<ScheduledSessionModel?> scheduledSession;
 
-  const ScheduledSessions({super.key, required this.child});
+  const ScheduledSessions({super.key, required this.scheduledSession});
 
   @override
   Widget build(BuildContext context) {
     final r = Responsive(context);
 
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    final assignments = child.therapists
-        .where((a) => a.schedule != null && a.schedule!.days.isNotEmpty)
-        .toList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
-          title: 'Scheduled Sessions',
+        const SectionHeader(
+          title: "Scheduled Sessions",
           icon: Icons.calendar_month_outlined,
         ),
 
-        r.gapH(16),
+        r.gapH(12, tablet: 16, desktop: 20),
 
-        if (assignments.isEmpty)
-          EmptyHint(message: 'No recurring schedule set yet')
-        else
-          ...assignments.map((assignment) {
-            final schedule = assignment.schedule!;
-            final daysLabel = schedule.days.map((d) => dayNames[d]).join(', ');
+        scheduledSession.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: CircularProgressIndicator(),
+            ),
+          ),
 
-            return Padding(
-              padding: EdgeInsets.only(bottom: r.h(12)),
-              child: AppCard(
-                color: AppColors.primaryBlue.withValues(alpha: 0.03),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(r.w(12)),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withValues(alpha: 0.10),
-                        borderRadius: r.borderRadius(10),
+          error: (_, __) => const sw.EmptyWidget(
+            message: "Unable to load scheduled session",
+            icon: Icons.error_outline,
+          ),
+
+          data: (session) {
+            if (session == null) {
+              return const sw.EmptyWidget(
+                message: "No recurring schedule set",
+                icon: Icons.calendar_month_outlined,
+              );
+            }
+
+            return _ScheduleCard(session: session);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ScheduleCard extends StatelessWidget {
+  final ScheduledSessionModel session;
+
+  const _ScheduleCard({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+
+    return AppCard(
+      padding: EdgeInsets.symmetric(
+        horizontal: r.w(16, tablet: 18, desktop: 20),
+        vertical: r.h(16, tablet: 18, desktop: 20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 4,
+            height: r.h(58, tablet: 62, desktop: 64),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+
+          r.gapW(18),
+
+          Expanded(
+            child: r.isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.therapyType,
+                        style: TextStyle(
+                          fontSize: r.sp(17),
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.repeat,
-                        color: AppColors.primaryBlue,
-                        size: r.icon(22, tablet: 24, desktop: 26),
-                      ),
-                    ),
 
-                    r.gapW(14),
+                      r.gapH(12),
 
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          Text(
-                            assignment.therapyType,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: r.sp(15, tablet: 16, desktop: 17),
-                            ),
+                          _ScheduleInfoChip(
+                            icon: Icons.schedule_outlined,
+                            text: session.timeLabel,
                           ),
-
-                          if (assignment.therapistName != null) ...[
-                            r.gapH(2),
-                            Text(
-                              assignment.therapistName!,
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: r.sp(12, tablet: 13, desktop: 14),
-                              ),
-                            ),
-                          ],
-
-                          r.gapH(6),
-
-                          Text(
-                            '$daysLabel  •  ${schedule.fromTime} – ${schedule.toTime}',
-                            style: TextStyle(
-                              color: AppColors.primaryBlue,
-                              fontSize: r.sp(12, tablet: 13, desktop: 14),
-                            ),
+                          _ScheduleInfoChip(
+                            icon: Icons.calendar_today_outlined,
+                            text: session.daysLabel,
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-      ],
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          session.therapyType,
+                          style: TextStyle(
+                            fontSize: r.sp(18),
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _ScheduleInfoChip(
+                            icon: Icons.schedule_outlined,
+                            text: session.timeLabel,
+                          ),
+                          _ScheduleInfoChip(
+                            icon: Icons.calendar_today_outlined,
+                            text: session.daysLabel,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScheduleInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _ScheduleInfoChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: r.w(12), vertical: r.h(7)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: r.icon(14), color: AppColors.primaryBlue),
+          r.gapW(6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: r.sp(12),
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

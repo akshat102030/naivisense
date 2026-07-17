@@ -4,7 +4,7 @@ import { SessionModel }    from '../../models/session.model';
 import { AppError }        from '../../middleware/error';
 import type { AuthPayload } from '../../middleware/auth';
 import { fetchMeetAttendance } from '../google/google.service';
-import { CenterProfileModel } from '../../models/center-profile.model'; // Added CenterProfileModel import
+import { CenterProfileModel } from '../../models/center-profile.model'; 
 import type { ParentCheckInInput, TherapistApproveInput, SyncMeetAttendanceInput } from './attendance.schema';
 
 const THERAPIST_ROLES = ['therapist', 'center_head', 'lead_therapist'] as const;
@@ -34,50 +34,83 @@ export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload
     throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
   }
 
-  const session = await SessionModel.findById(input.session_id).lean();
-  if (!session) {
-    throw new AppError('NOT_FOUND', 'Session not found for attendance validation');
-  }
+  //  FIX: Agar session_id bheja hai, tabhi database validation check chalega
+  if (input.session_id) {
+    const session = await SessionModel.findById(input.session_id).lean();
+    if (!session) {
+      throw new AppError('NOT_FOUND', 'Session not found for attendance validation');
+    }
 
-  // Prevent duplicate attendance entries for the same child, session, and date
-  const existingAttendance = await AttendanceModel.findOne({
-    child_id: input.child_id,
-    session_id: input.session_id
-  });
+    // Prevent duplicate attendance entries ONLY if session_id exists
+    const existingAttendance = await AttendanceModel.findOne({
+      child_id: input.child_id,
+      session_id: input.session_id
+    });
 
-  if (existingAttendance) {
-    throw new AppError('BAD_REQUEST', 'Attendance is already registered for this session');
+    if (existingAttendance) {
+      throw new AppError('BAD_REQUEST', 'Attendance is already registered for this session');
+    }
   }
 
   // Calculate geofence distance
-  const centerProfile = await CenterProfileModel.findOne().lean(); // Or fetch by user_id/center_id linked to session
-const centerLat = centerProfile?.latitude ?? 22.7196;
-const centerLng = centerProfile?.longitude ?? 75.8577;
+  // Fetch center profile
+const centerProfile = await CenterProfileModel.findOne().lean();
 
-  const distance = getDistanceInMeters(
-    input.location.lat,
-    input.location.lng,
-    centerLat,
-    centerLng
+if (!centerProfile) {
+  throw new AppError(
+    "NOT_FOUND",
+    "Center profile not found. Please configure the center first."
   );
-
-  // If inside 50m, source is marked as 'geo' (auto-present). Otherwise, it is recorded as a manual check-in override.
-  const isWithinGeofence = distance <= 50;
-  const source = isWithinGeofence ? 'geo' : 'manual_override';
-
-  // Entry is created directly with 'present' status
-  return AttendanceModel.create({
-    child_id: input.child_id,
-    session_id: input.session_id,
-    date: new Date(input.date),
-    status: 'present', 
-    source: source,
-    location: input.location,
-    notes: input.notes,
-    marked_by: user.sub, // References parent's ID
-  });
 }
 
+if (
+  centerProfile.latitude == null ||
+  centerProfile.longitude == null
+) {
+  throw new AppError(
+    "BAD_REQUEST",
+    "Center coordinates are not configured."
+  );
+}
+
+const centerLat = centerProfile.latitude;
+const centerLng = centerProfile.longitude;
+
+// Calculate distance
+const distance = getDistanceInMeters(
+  input.location.lat,
+  input.location.lng,
+  centerLat,
+  centerLng
+);
+
+console.log("Parent Location:", input.location);
+console.log("Center Location:", {
+  lat: centerLat,
+  lng: centerLng,
+});
+console.log("Distance (meters):", distance);
+
+const isWithinGeofence = distance <= 50;
+const source = isWithinGeofence ? "geo" : "manual_override";
+
+  // Entry is created directly with 'present' status
+  try {
+  return await AttendanceModel.create({
+    child_id: input.child_id,
+    session_id: input.session_id ?? null,
+    date: new Date(input.date),
+    status: "present",
+    source,
+    location: input.location,
+    notes: input.notes,
+    marked_by: user.sub,
+  });
+} catch (err) {
+  console.error("Attendance creation failed:", err);
+  throw err;
+}
+}
 
 // 2. THERAPIST UNMARK / UPDATE STATUS SERVICE
 

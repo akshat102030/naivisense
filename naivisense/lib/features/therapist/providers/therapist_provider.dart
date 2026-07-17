@@ -50,6 +50,17 @@ final therapistChildNextSessionProvider =
           ref.read(sessionsRepositoryProvider).getNextSession(childId: childId),
     );
 
+final therapistSessionNotesProvider =
+    FutureProvider.family<SessionNotes?, String>((ref, sessionId) {
+      return ref.read(sessionsRepositoryProvider).getSessionNotes(sessionId);
+    });
+
+final parentSessionNotesProvider = FutureProvider.family<SessionNotes?, String>(
+  (ref, sessionId) {
+    return ref.read(sessionsRepositoryProvider).getSessionNotes(sessionId);
+  },
+);
+
 final therapistChildGoalsProvider =
     FutureProvider.family<List<GoalModel>, String>(
       (ref, childId) =>
@@ -146,7 +157,7 @@ class SessionNotesNotifier extends Notifier<SessionNotesState> {
     try {
       await ref.read(sessionsRepositoryProvider).submitNotes(sessionId, notes);
       state = const SessionNotesState(success: true);
-      ref.invalidate(therapistSessionsProvider);
+      ref.invalidate(therapistSessionNotesProvider(sessionId));
     } catch (e) {
       state = SessionNotesState(error: e.toString());
     }
@@ -154,13 +165,10 @@ class SessionNotesNotifier extends Notifier<SessionNotesState> {
 
   Future<void> update(String sessionId, Map<String, dynamic> notes) async {
     state = const SessionNotesState(loading: true);
-
     try {
       await ref.read(sessionsRepositoryProvider).updateNotes(sessionId, notes);
-
       state = const SessionNotesState(success: true);
-
-      ref.invalidate(therapistSessionsProvider);
+      ref.invalidate(therapistSessionNotesProvider(sessionId));
     } catch (e) {
       state = SessionNotesState(error: e.toString());
     }
@@ -207,9 +215,7 @@ class CreateSessionNotifier extends Notifier<CreateSessionState> {
       return true;
     } catch (e) {
       print(e);
-
       state = state.copyWith(loading: false, error: e.toString());
-
       return false;
     }
   }

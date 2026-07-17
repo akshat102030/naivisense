@@ -40,9 +40,6 @@ class ParentChildCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //----------------------------------------------------------
-            // Header
-            //----------------------------------------------------------
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -94,9 +91,6 @@ class ParentChildCard extends ConsumerWidget {
 
             r.gapH(18),
 
-            //----------------------------------------------------------
-            // Diagnosis
-            //----------------------------------------------------------
             Wrap(
               spacing: r.w(8),
               runSpacing: r.h(8),
@@ -124,9 +118,6 @@ class ParentChildCard extends ConsumerWidget {
 
             r.gapH(18),
 
-            //----------------------------------------------------------
-            // Information Cards
-            //----------------------------------------------------------
             InfoTile(
               icon: Icons.assignment_outlined,
               color: AppColors.primaryBlue,
@@ -147,9 +138,6 @@ class ParentChildCard extends ConsumerWidget {
 
             const Spacer(),
 
-            //----------------------------------------------------------
-            // Button
-            //----------------------------------------------------------
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(

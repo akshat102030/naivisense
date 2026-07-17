@@ -141,7 +141,6 @@ class DomainPage extends StatelessWidget {
               ),
 
               ...domain.items.asMap().entries.map((entry) {
-                final index = entry.key;
                 final item = entry.value;
 
                 return wrapCard(

@@ -1,6 +1,3 @@
-// ── Edit Session ─────────────────────────────────────────────────────────
-
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:naivisense/data/repositories/sessions_repository.dart';
 import 'package:naivisense/features/therapist/providers/therapist_provider.dart';
@@ -33,8 +30,6 @@ class EditSessionNotifier extends Notifier<EditSessionState> {
     state = state.copyWith(loading: true, error: null);
 
     try {
-      debugPrint('Session ID: $sessionId');
-      debugPrint('Payload: $payload');
 
       await ref
           .read(sessionsRepositoryProvider)

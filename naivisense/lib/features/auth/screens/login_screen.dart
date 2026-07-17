@@ -23,11 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   final _phoneCtr = TextEditingController();
   final _passCtr = TextEditingController();
-
-  /// Stores the full international phone number.
-  /// Example:
-  /// +919876543210
-  /// +15551234567
   String _completePhone = '';
 
   bool _obscure = true;

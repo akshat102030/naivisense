@@ -1,166 +1,222 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:naivisense/core/theme/app_colors.dart';
 import 'package:naivisense/core/utils/date_utils.dart';
 import 'package:naivisense/core/utils/responsive.dart';
 import 'package:naivisense/data/models/session.dart';
-import 'package:naivisense/shared/widgets/app_card.dart';
-
-import 'section_header.dart';
-import 'empty_hint.dart';
+import 'package:naivisense/features/parent/widget/section_header.dart';
 
 class NextSessionSection extends StatelessWidget {
-  final AsyncValue<List<SessionModel>> sessions;
+  final AsyncValue<List<SessionModel>> upcomingSessions;
 
-  const NextSessionSection({super.key, required this.sessions});
+  const NextSessionSection({super.key, required this.upcomingSessions});
 
   @override
   Widget build(BuildContext context) {
     final r = Responsive(context);
 
-    final upcoming =
-        sessions.valueOrNull
-            ?.where(
-              (s) =>
-                  s.status == 'scheduled' &&
-                  s.scheduledAt.isAfter(DateTime.now()),
-            )
-            .toList()
-          ?..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    return Container(
+      padding: EdgeInsets.all(r.w(18, tablet: 20, desktop: 24)),
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue.withValues(alpha: 0.08),
+        borderRadius: r.borderRadius(16, tablet: 18, desktop: 20),
+        border: Border.all(
+          color: AppColors.primaryBlue.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: "Upcoming Sessions",
+            icon: Icons.calendar_month_outlined,
+          ),
 
-    final next = upcoming?.isNotEmpty == true ? upcoming!.first : null;
+          r.gapH(16),
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader(title: 'Next Session', icon: Icons.event_outlined),
+          upcomingSessions.when(
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: CircularProgressIndicator(),
+              ),
+            ),
 
-        r.gapH(14),
+            error: (_, __) => Container(
+              padding: EdgeInsets.all(r.w(16)),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: r.borderRadius(14),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: r.icon(22),
+                  ),
+                  r.gapW(10),
+                  const Expanded(
+                    child: Text("Unable to load upcoming sessions"),
+                  ),
+                ],
+              ),
+            ),
 
-        if (next == null)
-          const EmptyHint(
-            message: 'No upcoming sessions scheduled',
-            icon: Icons.event_busy_outlined,
-          )
-        else
-          _NextSessionCard(session: next),
-      ],
+            data: (sessions) {
+              if (sessions.isEmpty) {
+                return Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: r.w(16),
+                    vertical: r.h(14),
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: r.borderRadius(14),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_busy_outlined,
+                        color: AppColors.textSecondary,
+                        size: r.icon(22),
+                      ),
+                      r.gapW(12),
+                      Expanded(
+                        child: Text(
+                          "No upcoming sessions scheduled",
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: r.sp(13),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
+                children: List.generate(sessions.length, (index) {
+                  final session = sessions[index];
+
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == sessions.length - 1 ? 0 : r.h(14),
+                    ),
+                    child: _SessionCard(session: session),
+                  );
+                }),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _NextSessionCard extends StatelessWidget {
+class _SessionCard extends StatelessWidget {
   final SessionModel session;
 
-  const _NextSessionCard({required this.session});
+  const _SessionCard({required this.session});
 
   @override
   Widget build(BuildContext context) {
     final r = Responsive(context);
 
-    final isOnline = session.mode == 'online';
+    return Container(
+      padding: EdgeInsets.all(r.w(16, tablet: 18, desktop: 20)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: r.borderRadius(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(r.w(10)),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: .12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.event,
+              color: AppColors.primaryBlue,
+              size: r.icon(22),
+            ),
+          ),
 
-    return AppCard(
-      color: AppColors.primaryBlue.withValues(alpha: 0.04),
+          r.gapW(16),
 
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 360;
-
-          return Wrap(
-            spacing: r.w(14),
-            runSpacing: r.h(12),
-            crossAxisAlignment: WrapCrossAlignment.center,
-
-            children: [
-              Container(
-                padding: EdgeInsets.all(r.w(12)),
-
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.10),
-
-                  borderRadius: r.borderRadius(14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.typeLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: r.sp(16, tablet: 17, desktop: 18),
+                  ),
                 ),
 
-                child: Icon(
-                  Icons.event,
-                  color: AppColors.primaryBlue,
-                  size: r.icon(24, tablet: 26, desktop: 28),
-                ),
-              ),
+                r.gapH(10),
 
-              SizedBox(
-                width: compact
-                    ? constraints.maxWidth - 40
-                    : constraints.maxWidth * .50,
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
+                Wrap(
+                  spacing: r.w(10),
+                  runSpacing: r.h(8),
                   children: [
-                    Text(
-                      session.typeLabel,
-
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-
-                        fontSize: r.sp(15, tablet: 16, desktop: 17),
-                      ),
+                    _InfoChip(
+                      icon: Icons.calendar_today_outlined,
+                      text: AppDateUtils.formatDate(session.scheduledAt),
                     ),
-
-                    r.gapH(5),
-
-                    Text(
-                      '${AppDateUtils.formatDate(session.scheduledAt)} • ${AppDateUtils.formatTime(session.scheduledAt)}',
-
-                      maxLines: 2,
-
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-
-                        fontSize: r.sp(12),
-                      ),
+                    _InfoChip(
+                      icon: Icons.access_time_outlined,
+                      text: AppDateUtils.formatTime(session.scheduledAt),
+                    ),
+                    _InfoChip(
+                      icon: Icons.timelapse_outlined,
+                      text: "${session.durationMin} min",
                     ),
                   ],
                 ),
-              ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: r.w(12),
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
 
-                  vertical: r.h(6),
-                ),
+  const _InfoChip({required this.icon, required this.text});
 
-                decoration: BoxDecoration(
-                  color: isOnline
-                      ? AppColors.primaryBlue.withValues(alpha: .10)
-                      : AppColors.mintGreen.withValues(alpha: .10),
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
 
-                  borderRadius: r.borderRadius(20),
-                ),
-
-                child: Text(
-                  isOnline ? 'Online' : 'In-Person',
-
-                  style: TextStyle(
-                    color: isOnline
-                        ? AppColors.primaryBlue
-                        : AppColors.mintGreen,
-
-                    fontWeight: FontWeight.w600,
-
-                    fontSize: r.sp(12),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: r.w(10), vertical: r.h(6)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: r.icon(14), color: AppColors.primaryBlue),
+          r.gapW(6),
+          Text(text, style: TextStyle(fontSize: r.sp(12))),
+        ],
       ),
     );
   }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import 'package:naivisense/core/theme/app_colors.dart';
 import 'package:naivisense/core/utils/date_utils.dart';
 import 'package:naivisense/core/utils/responsive.dart';
@@ -19,10 +22,36 @@ class SessionCard extends StatelessWidget {
     this.onEdit,
   });
 
+  bool get _hasMeeting =>
+      session.meetingLink != null && session.meetingLink!.trim().isNotEmpty;
+
+  Future<void> _openMeeting(BuildContext context) async {
+    if (!_hasMeeting) return;
+
+    try {
+      final uri = Uri.parse(session.meetingLink!);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open Google Meet link')),
+        );
+      }
+    } catch (_) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid Google Meet link')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = Responsive(context);
     final isCompleted = session.status == 'completed';
+    print(
+      'SessionCard: isCompleted: $isCompleted, hasMeeting: $_hasMeeting, meetingLink: ${session.meetingLink},sessionId: ${session.id}, childName: $childName',
+    );
 
     return AppCard(
       child: Padding(
@@ -56,11 +85,20 @@ class SessionCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text("Edit"),
-              ),
+              if (_hasMeeting)
+                FilledButton.icon(
+                  onPressed: () => _openMeeting(context),
+                  icon: const FaIcon(FontAwesomeIcons.google, size: 16),
+                  label: const Text("Meet"),
+                ),
+
+              if (onEdit != null)
+                OutlinedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text("Edit"),
+                ),
+
               FilledButton.icon(
                 onPressed: onNotes,
                 icon: const Icon(Icons.note_alt_outlined, size: 18),
@@ -96,11 +134,20 @@ class SessionCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text("Edit"),
-              ),
+              if (_hasMeeting)
+                FilledButton.icon(
+                  onPressed: () => _openMeeting(context),
+                  icon: const FaIcon(FontAwesomeIcons.google, size: 16),
+                  label: const Text("Meet"),
+                ),
+
+              if (onEdit != null)
+                OutlinedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text("Edit"),
+                ),
+
               FilledButton.icon(
                 onPressed: onNotes,
                 icon: const Icon(Icons.note_alt_outlined, size: 18),
@@ -144,14 +191,18 @@ class SessionCard extends StatelessWidget {
           runSpacing: 6,
           children: [
             _InfoChip(icon: Icons.psychology_outlined, text: session.typeLabel),
+
             _InfoChip(
               icon: Icons.schedule,
               text: AppDateUtils.formatTime(session.scheduledAt),
             ),
+
             _InfoChip(
               icon: Icons.timelapse,
               text: '${session.durationMin} min',
             ),
+
+            if (_hasMeeting) _GoogleMeetChip(r: r),
           ],
         ),
       ],
@@ -171,6 +222,37 @@ class SessionCard extends StatelessWidget {
           color: AppColors.mintGreen,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+class _GoogleMeetChip extends StatelessWidget {
+  final Responsive r;
+
+  const _GoogleMeetChip({required this.r});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: r.w(8, tablet: 10),
+        vertical: r.h(5, tablet: 6),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const FaIcon(FontAwesomeIcons.google, size: 14, color: Colors.green),
+          r.gapW(5),
+          Text(
+            'Google Meet',
+            style: TextStyle(fontSize: r.sp(12, tablet: 13, desktop: 14)),
+          ),
+        ],
       ),
     );
   }

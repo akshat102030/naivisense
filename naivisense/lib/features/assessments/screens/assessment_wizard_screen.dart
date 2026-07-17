@@ -47,14 +47,18 @@ class _AssessmentWizardScreenState
       _domainData[d.key] = {};
     }
 
-    // Prefill using latest if available, otherwise domainData
+    // Prefill from latest assessment if available,
+    // otherwise from initial assessment.
     final prefill = widget.previousAssessment?.prefillData;
 
     if (prefill != null) {
-      for (final entry in prefill.entries) {
-        if (entry.value is Map) {
-          _domainData[entry.key] =
-              Map<String, dynamic>.from(entry.value as Map);
+      for (final domain in kAssessmentDomains) {
+        final value = prefill[domain.key];
+
+        if (value is Map<String, dynamic>) {
+          _domainData[domain.key] = Map<String, dynamic>.from(value);
+        } else if (value is Map) {
+          _domainData[domain.key] = Map<String, dynamic>.from(value);
         }
       }
     }
@@ -86,31 +90,28 @@ class _AssessmentWizardScreenState
 
   Future<void> _submit() async {
     final payload = {
-      'child_id': widget.child.id,
-      'type': widget.assessmentType,
-      'general_notes': '',
-      'domain_data': _domainData,
+      "child_id": widget.child.id,
+      "assessment": {
+        "type": widget.assessmentType,
+        "is_complete": true,
+        "general_notes": "",
+        "domain_data": _domainData,
+      },
     };
 
     final result = await ref
         .read(assessmentSubmitProvider.notifier)
         .submit(payload, widget.child.id);
 
-    if (result != null && mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    if (!mounted || result == null) return;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AssessmentResultScreen(
-              assessment: result,
-              child: widget.child,
-            ),
-          ),
-        );
-      });
-    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            AssessmentResultScreen(assessment: result, child: widget.child),
+      ),
+    );
   }
 
   @override
@@ -131,9 +132,9 @@ class _AssessmentWizardScreenState
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontSize: r.sp(16, tablet: 18, desktop: 20),
-                fontWeight: FontWeight.w600,
-              ),
+            fontSize: r.sp(16, tablet: 18, desktop: 20),
+            fontWeight: FontWeight.w600,
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(r.h(5, tablet: 6, desktop: 6)),

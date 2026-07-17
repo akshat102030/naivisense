@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:naivisense/data/models/scheduled_session_model.dart';
 import '../../../data/models/alert.dart';
 import '../../../data/models/child.dart';
 import '../../../data/models/diet_plan.dart';
@@ -42,6 +43,20 @@ final parentSessionsProvider =
           ref.read(sessionsRepositoryProvider).getSessions(childId: childId),
     );
 
+final parentUpcomingSessionsProvider =
+    FutureProvider.family<List<SessionModel>, String>((ref, childId) {
+      return ref
+          .read(sessionsRepositoryProvider)
+          .getUpcomingSessions(childId: childId);
+    });
+
+final parentScheduledSessionProvider =
+    FutureProvider.family<ScheduledSessionModel?, String>((ref, childId) {
+      return ref
+          .read(sessionsRepositoryProvider)
+          .getScheduledSession(childId: childId);
+    });
+
 final parentAlertsProvider = FutureProvider.family<List<AlertModel>, String>(
   (ref, childId) => ref.read(alertsRepositoryProvider).getAlerts(childId),
 );
@@ -76,8 +91,6 @@ final parentChatMessagesProvider =
           ref.read(chatbotRepositoryProvider).getMessages(threadId),
     );
 
-// ── Chat send state ────────────────────────────────────────────────────────
-
 class ChatSendState {
   final bool loading;
   final String? error;
@@ -107,8 +120,6 @@ class ChatSendNotifier extends Notifier<ChatSendState> {
 final chatSendProvider = NotifierProvider<ChatSendNotifier, ChatSendState>(
   ChatSendNotifier.new,
 );
-
-// ── Task log state ─────────────────────────────────────────────────────────
 
 class TaskLogState {
   final bool loading;
@@ -150,8 +161,6 @@ final taskLogProvider = NotifierProvider<TaskLogNotifier, TaskLogState>(
   TaskLogNotifier.new,
 );
 
-// ── Alert creation state ───────────────────────────────────────────────────
-
 class AlertState {
   final bool loading;
   final String? error;
@@ -187,11 +196,6 @@ final alertProvider = NotifierProvider<AlertNotifier, AlertState>(
   AlertNotifier.new,
 );
 
-// ── Video upload state ─────────────────────────────────────────────────────
-// ---------------------------------------------------------------------------
-// Upload State
-// ---------------------------------------------------------------------------
-
 class VideoUploadState {
   final bool loading;
   final String? error;
@@ -212,10 +216,6 @@ class VideoUploadState {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Upload Notifier
-// ---------------------------------------------------------------------------
-
 class VideoUploadNotifier extends Notifier<VideoUploadState> {
   @override
   VideoUploadState build() => const VideoUploadState();
@@ -223,16 +223,9 @@ class VideoUploadNotifier extends Notifier<VideoUploadState> {
   Future<bool> upload({
     required String childId,
     required String title,
-
-    /// Mobile/Desktop
     String? filePath,
-
-    /// Web
     Uint8List? fileBytes,
-
-    /// Original filename
     String? fileName,
-
     required String mimeType,
   }) async {
     state = state.copyWith(loading: true, error: null, success: false);
@@ -269,10 +262,6 @@ class VideoUploadNotifier extends Notifier<VideoUploadState> {
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
 
 final videoUploadProvider =
     NotifierProvider<VideoUploadNotifier, VideoUploadState>(
