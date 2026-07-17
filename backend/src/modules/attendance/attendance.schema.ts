@@ -4,9 +4,9 @@ import { z } from 'zod';
 export const ParentCheckInSchema = z.object({
   child_id:   z.string().length(24),
   session_id: z.string().length(24).optional(),
-  date:       z.string().datetime({ offset: true }),
+  date:       z.string(), //removed datetime
   
-  status:     z.enum(['pending_approval', 'present', 'absent']),
+  status:     z.enum(['pending_approval', 'present', 'absent']).optional(),
   
   // Allowing either 'geo' (inside geofence) or 'manual_override' (outside geofence)
   source:     z.enum(['geo', 'manual_override']).default('geo'), 
