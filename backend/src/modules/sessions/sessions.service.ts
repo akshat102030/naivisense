@@ -15,6 +15,7 @@ import type {
   UpdateSessionInput,
  } from "./sessions.schema";
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
+import { CenterProfileModel } from "../../models/center-profile.model";
 
 
 const BREAK_TIME = 10;
