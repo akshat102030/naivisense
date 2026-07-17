@@ -32,6 +32,7 @@ class SessionNotes {
     this.resolutionNotes,
     this.followUpRequired = false,
   });
+
   @override
   String toString() {
     return const JsonEncoder.withIndent('  ').convert(toJson());
@@ -87,7 +88,10 @@ class SessionModel {
   final String type; // speech | ot | behavior | special_ed
   final String mode; // online | offline
   final String status; // scheduled | completed | cancelled
+
+  /// Present only for online sessions
   final String? meetingLink;
+
   final SessionNotes? notes;
 
   const SessionModel({
@@ -107,10 +111,14 @@ class SessionModel {
     final scheduledAtStr = j['scheduled_at'] as String?;
     final notesJson = j['notes'] as Map<String, dynamic>?;
 
+    final rawMeetingLink = (j['meeting_link'] ?? j['meetingLink'])
+        ?.toString()
+        .trim();
+
     return SessionModel(
-      id: j['_id'] as String? ?? '',
-      childId: j['child_id'] as String? ?? '',
-      therapistId: j['therapist_id'] as String? ?? '',
+      id: j['_id']?.toString() ?? '',
+      childId: j['child_id']?.toString() ?? '',
+      therapistId: j['therapist_id']?.toString() ?? '',
       scheduledAt: scheduledAtStr != null
           ? DateTime.parse(scheduledAtStr)
           : DateTime.now(),
@@ -118,10 +126,17 @@ class SessionModel {
       type: j['type'] as String? ?? 'speech',
       mode: j['mode'] as String? ?? 'offline',
       status: j['status'] as String? ?? 'scheduled',
-      meetingLink: j['meeting_link'] as String?,
+
+      meetingLink: (rawMeetingLink == null || rawMeetingLink.isEmpty)
+          ? null
+          : rawMeetingLink,
+
       notes: notesJson != null ? SessionNotes.fromJson(notesJson) : null,
     );
   }
+
+  bool get hasMeetingLink =>
+      meetingLink != null && meetingLink!.trim().isNotEmpty;
 
   String get typeLabel => switch (type) {
     'ot' => 'Occupational Therapy',

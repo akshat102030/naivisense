@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../services/api_service.dart';
 import '../services/error_handler_service.dart';
 import '../models/attendance_record.dart';
@@ -9,12 +10,17 @@ final attendanceRepositoryProvider = Provider<AttendanceRepository>(
 
 class AttendanceRepository {
   final ApiService _api;
+
   AttendanceRepository(this._api);
 
-  Future<List<AttendanceRecord>> getAttendance({required String childId}) async {
+  Future<List<AttendanceRecord>> getAttendance({
+    required String childId,
+  }) async {
     try {
-      final res  = await _api.get('/attendance', params: {'childId': childId});
+      final res = await _api.get('/attendance', params: {'childId': childId});
+
       final list = res.data as List<dynamic>;
+
       return list
           .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -23,9 +29,24 @@ class AttendanceRepository {
     }
   }
 
-  Future<AttendanceRecord> markAttendance(Map<String, dynamic> data) async {
+  Future<AttendanceRecord> markAttendance({
+    required String childId,
+    required DateTime date,
+    required double latitude,
+    required double longitude,
+  }) async {
     try {
-      final res = await _api.post('/attendance', data: data);
+      final payload = {
+        'child_id': childId,
+        'date': date.toUtc().toIso8601String(),
+        'location': {'lat': latitude, 'lng': longitude},
+      };
+
+      print('📤 Attendance Request Payload:');
+      print(payload);
+
+      final res = await _api.post('/attendance/parent-checkin', data: payload);
+
       return AttendanceRecord.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
       throw ErrorHandlerService.handle(e);

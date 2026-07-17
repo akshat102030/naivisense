@@ -14,19 +14,19 @@ class AssessmentResultScreen extends StatelessWidget {
     required this.child,
   });
 
-  Color get _riskColor => switch (assessment.riskLevel) {
+  Color get _riskColor => switch (assessment.displayRiskLevel) {
     'green' => AppColors.mintGreen,
     'red' => AppColors.softCoral,
     _ => AppColors.warmYellow,
   };
 
-  String get _riskLabel => switch (assessment.riskLevel) {
+  String get _riskLabel => switch (assessment.displayRiskLevel) {
     'green' => 'Low Risk',
     'red' => 'High Risk',
     _ => 'Moderate Risk',
   };
 
-  String get _riskMessage => switch (assessment.riskLevel) {
+  String get _riskMessage => switch (assessment.displayRiskLevel) {
     'green' =>
       'The child is performing well overall. Continue current therapy plan.',
     'red' =>
@@ -36,7 +36,7 @@ class AssessmentResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scores = assessment.domainScores.toKeyedMap();
+    final scores = assessment.displayDomainScores.toKeyedMap();
     final mediaQuery = MediaQuery.of(context);
 
     return LayoutBuilder(
@@ -194,7 +194,7 @@ class AssessmentResultScreen extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '${assessment.overallScorePct.toStringAsFixed(0)}%',
+            '${assessment.displayOverallScore.toStringAsFixed(0)}%',
             style: TextStyle(
               color: Colors.white,
               fontSize: scoreFontSize,
@@ -213,7 +213,7 @@ class AssessmentResultScreen extends StatelessWidget {
           ),
           SizedBox(height: metaGap),
           Text(
-            _typeLabel(assessment.type),
+            _typeLabel(assessment.displayType),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
@@ -223,7 +223,7 @@ class AssessmentResultScreen extends StatelessWidget {
           ),
           SizedBox(height: smallGap),
           Text(
-            _formatDate(assessment.date),
+            _formatDate(assessment.displayDate),
             style: TextStyle(
               color: Colors.white70,
               fontSize: (12 * textScale).clamp(11.0, 14.0),
@@ -395,7 +395,7 @@ class AssessmentResultScreen extends StatelessWidget {
     );
   }
 
-  IconData get _riskIcon => switch (assessment.riskLevel) {
+  IconData get _riskIcon => switch (assessment.displayRiskLevel) {
     'green' => Icons.check_circle_outline,
     'red' => Icons.error_outline,
     _ => Icons.warning_amber_outlined,

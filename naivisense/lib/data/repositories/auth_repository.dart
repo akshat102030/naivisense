@@ -24,7 +24,6 @@ class AuthRepository {
         access: access,
         refresh: refresh,
       );
-      final test = await StorageService.instance.getAccessToken();
       await StorageService.instance.saveRole(auth.user.role);
       await StorageService.instance.saveUserId(auth.user.id);
       return auth;

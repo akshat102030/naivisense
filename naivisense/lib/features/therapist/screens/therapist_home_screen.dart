@@ -24,7 +24,6 @@ class TherapistHomeScreen extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final responsive = Responsive(context);
-
         final horizontalPadding = responsive.horizontalPadding;
 
         return Scaffold(

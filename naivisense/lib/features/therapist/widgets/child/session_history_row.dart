@@ -24,6 +24,8 @@ class SessionHistoryRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final responsive = Responsive(context);
 
+    final notesAsync = ref.watch(therapistSessionNotesProvider(session.id));
+
     final (statusColor, statusLabel) = switch (session.status) {
       'completed' => (AppColors.mintGreen, 'Completed'),
       'cancelled' => (AppColors.softCoral, 'Cancelled'),
@@ -52,29 +54,50 @@ class SessionHistoryRow extends ConsumerWidget {
                   ],
                 ),
 
-          if (session.status == 'completed' && session.notes != null) ...[
+          if (session.status == 'completed') ...[
             responsive.gapH(12),
-            NotesPreview(
-              notes: session.notes!,
-              onEdit: () async {
-                final updated = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SessionNotesScreen(
-                      session: session,
-                      childName: child.name,
-                      existingNotes: session.notes,
-                    ),
-                  ),
-                );
 
-                if (updated == true) {
-                  ref.invalidate(therapistChildSessionsProvider(child.id));
+            notesAsync.when(
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+
+              error: (_, __) => const SizedBox.shrink(),
+
+              data: (notes) {
+                if (notes == null) {
+                  return const SizedBox.shrink();
                 }
+
+                return NotesPreview(
+                  notes: notes,
+                  onEdit: () async {
+                    final updated = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SessionNotesScreen(
+                          session: session,
+                          childName: child.name,
+                          existingNotes: notes,
+                        ),
+                      ),
+                    );
+
+                    if (updated == true) {
+                      ref.invalidate(therapistSessionNotesProvider(session.id));
+
+                      ref.invalidate(therapistChildSessionsProvider(child.id));
+                    }
+                  },
+                );
               },
             ),
           ] else if (session.status == 'scheduled') ...[
             responsive.gapH(8),
+
             TextButton.icon(
               onPressed: () async {
                 final updated = await Navigator.push(
@@ -88,6 +111,8 @@ class SessionHistoryRow extends ConsumerWidget {
                 );
 
                 if (updated == true) {
+                  ref.invalidate(therapistSessionNotesProvider(session.id));
+
                   ref.invalidate(therapistChildSessionsProvider(child.id));
                 }
               },
@@ -123,7 +148,9 @@ class _SessionInfo extends StatelessWidget {
             fontSize: responsive.sp(15),
           ),
         ),
+
         responsive.gapH(4),
+
         Text(
           '${AppDateUtils.formatDate(session.scheduledAt)} • '
           '${AppDateUtils.formatTime(session.scheduledAt)} • '

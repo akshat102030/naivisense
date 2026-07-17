@@ -70,74 +70,117 @@ class DomainScores {
   };
 }
 
-class AssessmentModel {
-  final String id;
-  final String childId;
-  final String type; // initial | monthly | quarterly
+class AssessmentSnapshot {
+  final String type;
   final DateTime date;
   final String assessedBy;
   final bool isComplete;
-  final double overallScorePct;
-  final String riskLevel; // green | amber | red
-  final double developmentalQuotient;
   final DomainScores domainScores;
+  final double overallScorePct;
+  final String riskLevel;
+  final double developmentalQuotient;
   final String generalNotes;
-
-  /// Original assessment data (never changes)
   final Map<String, dynamic>? domainData;
 
-  /// Latest assessment data (updated after every reassessment)
-  final Map<String, dynamic>? latest;
-
-  const AssessmentModel({
-    required this.id,
-    required this.childId,
+  const AssessmentSnapshot({
     required this.type,
     required this.date,
     required this.assessedBy,
     required this.isComplete,
+    required this.domainScores,
     required this.overallScorePct,
     required this.riskLevel,
     required this.developmentalQuotient,
-    required this.domainScores,
     required this.generalNotes,
     this.domainData,
+  });
+
+  factory AssessmentSnapshot.fromJson(Map<String, dynamic> j) {
+    return AssessmentSnapshot(
+      type: j['type'] ?? 'initial',
+      date: j['date'] != null
+          ? DateTime.tryParse(j['date'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      assessedBy: j['assessed_by'] ?? '',
+      isComplete: j['is_complete'] ?? false,
+      domainScores: DomainScores.fromJson(
+        Map<String, dynamic>.from(j['domain_scores'] ?? {}),
+      ),
+      overallScorePct: (j['overall_score_pct'] as num?)?.toDouble() ?? 0,
+      riskLevel: j['risk_level'] ?? 'amber',
+      developmentalQuotient:
+          (j['developmental_quotient'] as num?)?.toDouble() ?? 0,
+      generalNotes: j['general_notes'] ?? '',
+      domainData: j['domain_data'] != null
+          ? Map<String, dynamic>.from(j['domain_data'])
+          : null,
+    );
+  }
+}
+
+class AssessmentModel {
+  final String id;
+  final String childId;
+
+  final AssessmentSnapshot? initial;
+  final AssessmentSnapshot? latest;
+
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const AssessmentModel({
+    required this.id,
+    required this.childId,
+    this.initial,
     this.latest,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory AssessmentModel.fromJson(Map<String, dynamic> j) {
     return AssessmentModel(
-      id: (j['_id'] ?? j['id']) as String? ?? '',
-      childId: j['child_id'] as String? ?? '',
-      type: j['type'] as String? ?? 'initial',
-      date: j['date'] != null
-          ? DateTime.tryParse(j['date'] as String) ?? DateTime.now()
-          : DateTime.now(),
-      assessedBy: j['assessed_by'] as String? ?? '',
-      isComplete: j['is_complete'] as bool? ?? false,
-      overallScorePct: (j['overall_score_pct'] as num?)?.toDouble() ?? 0,
-      riskLevel: j['risk_level'] as String? ?? 'amber',
-      developmentalQuotient:
-          (j['developmental_quotient'] as num?)?.toDouble() ?? 0,
-      domainScores: j['domain_scores'] != null
-          ? DomainScores.fromJson(j['domain_scores'] as Map<String, dynamic>)
-          : const DomainScores(),
-      generalNotes: j['general_notes'] as String? ?? '',
-      domainData: j['domain_data'] != null
-          ? Map<String, dynamic>.from(j['domain_data'] as Map<String, dynamic>)
+      id: j['_id'] ?? '',
+      childId: j['child_id'] ?? '',
+      initial: j['initial'] != null
+          ? AssessmentSnapshot.fromJson(Map<String, dynamic>.from(j['initial']))
           : null,
       latest: j['latest'] != null
-          ? Map<String, dynamic>.from(j['latest'] as Map<String, dynamic>)
+          ? AssessmentSnapshot.fromJson(Map<String, dynamic>.from(j['latest']))
+          : null,
+      createdAt: j['created_at'] != null
+          ? DateTime.tryParse(j['created_at'].toString())
+          : null,
+      updatedAt: j['updated_at'] != null
+          ? DateTime.tryParse(j['updated_at'].toString())
           : null,
     );
   }
 
-  bool get hasLatest => latest != null && latest!.isNotEmpty;
+  bool get hasInitial => initial != null;
 
-  /// Returns the data that should be used to prefill the wizard.
-  /// Prefers latest, falls back to the original assessment.
-  Map<String, dynamic>? get prefillData {
-    if (hasLatest) return latest;
-    return domainData;
-  }
+  bool get hasLatest => latest != null;
+
+  AssessmentSnapshot get display => latest ?? initial ?? _emptySnapshot;
+  String get displayType => display.type;
+  DateTime get displayDate => display.date;
+  String get displayRiskLevel => display.riskLevel;
+  double get displayOverallScore => display.overallScorePct;
+  double get displayDevelopmentalQuotient => display.developmentalQuotient;
+  DomainScores get displayDomainScores => display.domainScores;
+  String get displayGeneralNotes => display.generalNotes;
+  Map<String, dynamic>? get prefillData =>
+      latest?.domainData ?? initial?.domainData;
+
+  static final AssessmentSnapshot _emptySnapshot = AssessmentSnapshot(
+    type: 'initial',
+    date: DateTime.fromMillisecondsSinceEpoch(0),
+    assessedBy: '',
+    isComplete: false,
+    domainScores: const DomainScores(),
+    overallScorePct: 0,
+    riskLevel: 'amber',
+    developmentalQuotient: 0,
+    generalNotes: '',
+    domainData: null,
+  );
 }

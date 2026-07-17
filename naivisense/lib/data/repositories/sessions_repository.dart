@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:naivisense/data/models/scheduled_session_model.dart';
 import '../services/api_service.dart';
 import '../services/error_handler_service.dart';
 import '../models/session.dart';
@@ -12,7 +12,6 @@ class SessionsRepository {
   final ApiService _api;
   SessionsRepository(this._api);
 
-  // For therapist home — returns upcoming sessions without requiring childId
   Future<List<SessionModel>> getUpcoming() async {
     try {
       final res = await _api.get('/sessions/upcoming');
@@ -25,7 +24,6 @@ class SessionsRepository {
     }
   }
 
-  // For child-specific view — childId required by backend
   Future<List<SessionModel>> getSessions({required String childId}) async {
     try {
       final res = await _api.get('/sessions', params: {'childId': childId});
@@ -65,8 +63,11 @@ class SessionsRepository {
     Map<String, dynamic> notes,
   ) async {
     try {
-      final res = await _api.post('/sessions/$sessionId/notes', data: notes);
-      return SessionModel.fromJson(res.data as Map<String, dynamic>);
+      final res = await _api.post(
+        '/session-notes/$sessionId/notes',
+        data: notes,
+      );
+      return SessionModel.fromJson(res.data['data']);
     } catch (e) {
       throw ErrorHandlerService.handle(e);
     }
@@ -77,9 +78,11 @@ class SessionsRepository {
     Map<String, dynamic> notes,
   ) async {
     try {
-      final res = await _api.put('/sessions/$sessionId/notes', data: notes);
-
-      return SessionModel.fromJson(res.data as Map<String, dynamic>);
+      final res = await _api.patch(
+        '/session-notes/$sessionId/notes',
+        data: notes,
+      );
+      return SessionModel.fromJson(res.data['data']);
     } catch (e) {
       throw ErrorHandlerService.handle(e);
     }
@@ -91,8 +94,53 @@ class SessionsRepository {
         '/sessions/next',
         params: {'childId': childId},
       );
+      print('SessionsRepository.getNextSession: ${res.data}');
       if (res.data == null) return null;
       return SessionModel.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  }
+
+  Future<List<SessionModel>> getUpcomingSessions({
+    required String childId,
+  }) async {
+    try {
+      final res = await _api.get('/parent/child/$childId/sessions/upcoming');
+      final list = res.data as List<dynamic>;
+      return list
+          .map((e) => SessionModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  }
+
+  Future<ScheduledSessionModel?> getScheduledSession({
+    required String childId,
+  }) async {
+    try {
+      final res = await _api.get('/parent/child/$childId/sessions/schedule'); // Change here
+
+      if (res.data == null) return null;
+
+      return ScheduledSessionModel.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  }
+
+  Future<SessionNotes?> getSessionNotes(String sessionId) async {
+    try {
+      final res = await _api.get('/session-notes/$sessionId/notes');
+
+      final data = res.data as Map<String, dynamic>;
+
+      if (data['data'] == null) {
+        return null;
+      }
+
+      return SessionNotes.fromJson(data['data'] as Map<String, dynamic>);
     } catch (e) {
       throw ErrorHandlerService.handle(e);
     }

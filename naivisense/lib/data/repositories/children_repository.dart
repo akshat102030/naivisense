@@ -18,7 +18,7 @@ class ChildrenRepository {
       return list.map((e) {
         try {
           return ChildModel.fromJson(e as Map<String, dynamic>);
-        } catch (err, st) {
+        } catch (err) {
           rethrow;
         }
       }).toList();

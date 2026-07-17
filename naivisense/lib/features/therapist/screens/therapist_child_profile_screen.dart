@@ -58,6 +58,7 @@ class TherapistChildProfileScreen extends ConsumerWidget {
           ref.invalidate(therapistChildReviewsProvider(child.id));
           ref.invalidate(therapistChildVideosProvider(child.id));
           ref.invalidate(therapistAiDraftsProvider(child.id));
+          ref.invalidate(therapistSessionNotesProvider);
         },
         child: CustomScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

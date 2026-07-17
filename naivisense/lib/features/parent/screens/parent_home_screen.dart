@@ -69,9 +69,6 @@ class ParentHomeScreen extends ConsumerWidget {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
 
           slivers: [
-            //----------------------------------------------------------
-            // HEADER
-            //----------------------------------------------------------
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
@@ -86,9 +83,6 @@ class ParentHomeScreen extends ConsumerWidget {
               ),
             ),
 
-            //----------------------------------------------------------
-            // MAIN CONTENT
-            //----------------------------------------------------------
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(

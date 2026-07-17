@@ -173,9 +173,6 @@ class _EditSessionScreenState extends ConsumerState<EditSessionScreen> {
       return;
     }
 
-    debugPrint("Original: ${widget.session.scheduledAt.toIso8601String()}");
-    debugPrint("Sending : ${_scheduledAt.toUtc().toIso8601String()}");
-
     final localDateTime = DateTime(
       _date.year,
       _date.month,

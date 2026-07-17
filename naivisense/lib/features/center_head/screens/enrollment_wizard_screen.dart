@@ -1869,21 +1869,4 @@ class _EnrollmentWizardScreenState
     'Fri',
     'Sat',
   ];
-
-  int _ageYears(DateTime dob) {
-    final now = DateTime.now();
-    int years = now.year - dob.year;
-    if (now.month < dob.month ||
-        (now.month == dob.month && now.day < dob.day)) {
-      years--;
-    }
-    return years;
-  }
-
-  int _ageMonths(DateTime dob) {
-    final now = DateTime.now();
-    int months = now.month - dob.month;
-    if (months < 0) months += 12;
-    return months;
-  }
 }

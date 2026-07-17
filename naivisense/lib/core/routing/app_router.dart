@@ -35,20 +35,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (status == AuthStatus.authenticated && onLogin) {
         final role = authState.valueOrNull?.user?.role ?? '';
         return switch (role) {
-          'therapist'              => '/therapist',
-          'parent'                 => '/parent',
-          'center_head'            => '/center-head',
-          'lead_therapist'         => '/lead-therapist',
-          'dietician'              => '/dietician',
-          'clinical_psychologist'  => '/clinical-psychologist',
-          _                        => '/login',
+          'therapist' => '/therapist',
+          'parent' => '/parent',
+          'center_head' => '/center-head',
+          'lead_therapist' => '/lead-therapist',
+          'dietician' => '/dietician',
+          'clinical_psychologist' => '/clinical-psychologist',
+          _ => '/login',
         };
       }
       return null;
     },
     routes: [
-      GoRoute(path: '/login',       builder: (ctx, _) => const LoginScreen()),
-      GoRoute(path: '/therapist',   builder: (ctx, _) => const TherapistHomeScreen()),
+      GoRoute(path: '/login', builder: (ctx, _) => const LoginScreen()),
+      GoRoute(
+        path: '/therapist',
+        builder: (ctx, _) => const TherapistHomeScreen(),
+      ),
       GoRoute(
         path: '/parent',
         builder: (ctx, _) => const ParentHomeScreen(),
@@ -69,34 +72,53 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(
-            path: 'chatbot',
-            builder: (ctx, _) => const ChatbotScreen(),
-          ),
+          GoRoute(path: 'chatbot', builder: (ctx, _) => const ChatbotScreen()),
         ],
       ),
-      GoRoute(path: '/lead-therapist', builder: (ctx, _) => const LeadTherapistHomeScreen()),
+      GoRoute(
+        path: '/lead-therapist',
+        builder: (ctx, _) => const LeadTherapistHomeScreen(),
+      ),
       GoRoute(
         path: '/dietician',
         builder: (ctx, _) => const DieticianHomeScreen(),
         routes: [
           GoRoute(
             path: 'child/:childId',
-            builder: (ctx, state) =>
-                DieticianChildProfileScreen(childId: state.pathParameters['childId']!),
+            builder: (ctx, state) => DieticianChildProfileScreen(
+              childId: state.pathParameters['childId']!,
+            ),
           ),
         ],
       ),
-      GoRoute(path: '/clinical-psychologist', builder: (ctx, _) => const ClinicalPsychologistHomeScreen()),
+      GoRoute(
+        path: '/clinical-psychologist',
+        builder: (ctx, _) => const ClinicalPsychologistHomeScreen(),
+      ),
       GoRoute(
         path: '/center-head',
         builder: (ctx, _) => const CenterHeadHomeScreen(),
         routes: [
-          GoRoute(path: 'enroll',           builder: (ctx, _) => const EnrollmentWizardScreen()),
-          GoRoute(path: 'enroll-therapist', builder: (ctx, _) => const TherapistEnrollmentWizardScreen()),
-          GoRoute(path: 'enroll-parent',    builder: (ctx, _) => const ParentEnrollmentScreen()),
-          GoRoute(path: 'payments',         builder: (ctx, _) => const PaymentsScreen()),
-          GoRoute(path: 'settings',         builder: (ctx, _) => const SettingsScreen()),
+          GoRoute(
+            path: 'enroll',
+            builder: (ctx, _) => const EnrollmentWizardScreen(),
+          ),
+          GoRoute(
+            path: 'enroll-therapist',
+            builder: (ctx, _) => const TherapistEnrollmentWizardScreen(),
+          ),
+          GoRoute(
+            path: 'enroll-parent',
+            builder: (ctx, _) => const ParentEnrollmentScreen(),
+          ),
+          GoRoute(
+            path: 'payments',
+            builder: (ctx, _) => const PaymentsScreen(),
+          ),
+          GoRoute(
+            path: 'settings',
+            builder: (ctx, _) => const SettingsScreen(),
+          ),
           GoRoute(
             path: 'child/:childId',
             builder: (ctx, state) {
@@ -107,8 +129,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (_, state) => Scaffold(
-      body: Center(child: Text('Page not found: ${state.error}')),
-    ),
+    errorBuilder: (_, state) =>
+        Scaffold(body: Center(child: Text('Page not found: ${state.error}'))),
   );
 });

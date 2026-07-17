@@ -4,6 +4,7 @@ import 'package:naivisense/core/utils/responsive.dart';
 import 'package:naivisense/core/utils/string_utils.dart';
 import 'package:naivisense/data/models/child.dart';
 import 'package:naivisense/data/models/session.dart';
+import 'package:naivisense/features/therapist/providers/therapist_provider.dart';
 import 'package:naivisense/features/therapist/screens/edit_session_screen.dart';
 import 'package:naivisense/features/therapist/screens/session_notes_screen.dart';
 import 'package:naivisense/features/therapist/widgets/session_card.dart';
@@ -22,6 +23,7 @@ class TodaySessions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final responsive = Responsive(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -40,18 +42,15 @@ class TodaySessions extends ConsumerWidget {
           error: (e, _) => sw.ErrorWidget(message: e.toString()),
 
           data: (list) {
-            final today = list.where((s) {
-              final d = s.scheduledAt;
-              final n = DateTime.now();
+            final now = DateTime.now();
 
-              return d.year == n.year && d.month == n.month && d.day == n.day;
-            }).toList();
-            today.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-            for (final s in list) {
-              debugPrint("Stored: ${s.scheduledAt}");
-              debugPrint("Local : ${s.scheduledAt.toLocal()}");
-              debugPrint("Now   : ${DateTime.now()}");
-            }
+            final today = list.where((session) {
+              final date = session.scheduledAt;
+
+              return date.year == now.year &&
+                  date.month == now.month &&
+                  date.day == now.day;
+            }).toList()..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
 
             if (today.isEmpty) {
               return const sw.EmptyWidget(
@@ -61,7 +60,8 @@ class TodaySessions extends ConsumerWidget {
             }
 
             final childMap = {
-              for (final c in (children.valueOrNull ?? [])) c.id: c.name,
+              for (final child in (children.valueOrNull ?? []))
+                child.id: child.name,
             };
 
             return ListView.separated(
@@ -72,31 +72,38 @@ class TodaySessions extends ConsumerWidget {
               separatorBuilder: (_, __) =>
                   responsive.gapH(8, tablet: 10, desktop: 12),
 
-              itemBuilder: (_, i) {
-                final s = today[i];
-                final childName = childMap[s.childId] ?? 'Unknown Child';
+              itemBuilder: (context, index) {
+                final session = today[index];
+
+                final childName = childMap[session.childId] ?? 'Unknown Child';
 
                 return SessionCard(
-                  session: s,
+                  session: session,
                   childName: toTitleCase(childName),
-                  onEdit: () {
-                    Navigator.push(
+
+                  onEdit: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => EditSessionScreen(session: s),
+                        builder: (_) => EditSessionScreen(session: session),
                       ),
                     );
+
+                    ref.invalidate(therapistSessionsProvider);
                   },
-                  onNotes: () {
-                    Navigator.push(
+
+                  onNotes: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => SessionNotesScreen(
-                          session: s,
+                          session: session,
                           childName: childName,
                         ),
                       ),
                     );
+
+                    ref.invalidate(therapistSessionsProvider);
                   },
                 );
               },

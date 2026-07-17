@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:naivisense/core/utils/responsive.dart';
+import 'package:naivisense/data/repositories/google_calendar_repository.dart';
 import 'package:naivisense/features/center_head/widgets/children_section.dart';
 import 'package:naivisense/features/center_head/widgets/dashboard_stats.dart';
 import 'package:naivisense/features/center_head/widgets/gradient_header.dart';
 import 'package:naivisense/features/center_head/widgets/parents_section.dart';
 import 'package:naivisense/features/center_head/widgets/therapists_section.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -36,6 +38,41 @@ class CenterHeadHomeScreen extends ConsumerWidget {
             backgroundColor: AppColors.surface,
             elevation: 0,
             actions: [
+              IconButton(
+                icon: Icon(
+                  Icons.calendar_month_outlined,
+                  size: r.icon(24, tablet: 26, desktop: 28),
+                ),
+                tooltip: 'Google Calendar',
+                onPressed: () async {
+                  try {
+                    final repo = ref.read(googleCalendarRepositoryProvider);
+
+                    final url = await repo.getGoogleAuthUrl();
+
+                    final uri = Uri.parse(url);
+
+                    if (!await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    )) {
+                      throw Exception(
+                        'Could not open Google authentication page.',
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to connect Google Calendar.\n$e',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
               IconButton(
                 icon: Icon(
                   Icons.payments_outlined,

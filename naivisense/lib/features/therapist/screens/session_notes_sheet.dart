@@ -73,9 +73,6 @@ class _SessionNotesSheetState extends ConsumerState<_SessionNotesSheet> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // ============================
-        // Responsive Breakpoints
-        // ============================
 
         final width = constraints.maxWidth;
 
