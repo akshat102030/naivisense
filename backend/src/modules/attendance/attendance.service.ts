@@ -53,34 +53,64 @@ export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload
   }
 
   // Calculate geofence distance
-  const centerProfile = await CenterProfileModel.findOne().lean(); 
-  const centerLat = centerProfile?.latitude ?? 22.7196;
-  const centerLng = centerProfile?.longitude ?? 75.8577;
+  // Fetch center profile
+const centerProfile = await CenterProfileModel.findOne().lean();
 
-  const distance = getDistanceInMeters(
-    input.location.lat,
-    input.location.lng,
-    centerLat,
-    centerLng
+if (!centerProfile) {
+  throw new AppError(
+    "NOT_FOUND",
+    "Center profile not found. Please configure the center first."
   );
-
-  // If inside 50m, source is marked as 'geo' (auto-present). Otherwise, it is recorded as a manual check-in override.
-  const isWithinGeofence = distance <= 50;
-  const source = isWithinGeofence ? 'geo' : 'manual_override';
-
-  // Entry is created directly with 'present' status
-  return AttendanceModel.create({
-    child_id: input.child_id,
-    session_id: input.session_id || null, // FIX: session_id nahi hone par null set hoga
-    date: new Date(input.date),
-    status: 'present', 
-    source: source,
-    location: input.location,
-    notes: input.notes,
-    marked_by: user.sub, // References parent's ID
-  });
 }
 
+if (
+  centerProfile.latitude == null ||
+  centerProfile.longitude == null
+) {
+  throw new AppError(
+    "BAD_REQUEST",
+    "Center coordinates are not configured."
+  );
+}
+
+const centerLat = centerProfile.latitude;
+const centerLng = centerProfile.longitude;
+
+// Calculate distance
+const distance = getDistanceInMeters(
+  input.location.lat,
+  input.location.lng,
+  centerLat,
+  centerLng
+);
+
+console.log("Parent Location:", input.location);
+console.log("Center Location:", {
+  lat: centerLat,
+  lng: centerLng,
+});
+console.log("Distance (meters):", distance);
+
+const isWithinGeofence = distance <= 50;
+const source = isWithinGeofence ? "geo" : "manual_override";
+
+  // Entry is created directly with 'present' status
+  try {
+  return await AttendanceModel.create({
+    child_id: input.child_id,
+    session_id: input.session_id ?? null,
+    date: new Date(input.date),
+    status: "present",
+    source,
+    location: input.location,
+    notes: input.notes,
+    marked_by: user.sub,
+  });
+} catch (err) {
+  console.error("Attendance creation failed:", err);
+  throw err;
+}
+}
 
 // 2. THERAPIST UNMARK / UPDATE STATUS SERVICE
 

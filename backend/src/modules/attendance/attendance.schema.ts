@@ -6,10 +6,10 @@ export const ParentCheckInSchema = z.object({
   session_id: z.string().length(24).optional(),
   date:       z.string(), //removed datetime
   
-  status:     z.enum(['pending_approval', 'present', 'absent']).optional(),
+  status:     z.enum([ 'present', 'absent','late']).optional(),
   
   // Allowing either 'geo' (inside geofence) or 'manual_override' (outside geofence)
-  source:     z.enum(['geo', 'manual_override']).default('geo'), 
+  source:     z.enum(['geo', 'manual_override','google_meet']).optional(), 
   
   location:   z.object({
     lat:     z.number(),
@@ -27,7 +27,7 @@ export const TherapistApproveSchema = z.object({
 });
 
 export const SyncMeetAttendanceSchema = z.object({
-  session_id: z.string().length(24),
+  session_id: z.string().length(24).optional(),
 });
 
 // Types Export
