@@ -50,9 +50,11 @@ export async function createSession(
     therapist_id: user.sub,
     scheduled_at: scheduledAt,
     end_at: endAt,
+    
   });
 
   if (input.mode === "online" && child) {
+    
     const center = await CenterProfileModel.findOne({
       user_id: child.center_id,
     });
@@ -123,6 +125,11 @@ export async function updateSession(
   if (input.type) {
     session.type = input.type;
   }
+
+  session.end_at = new Date(
+  session.scheduled_at.getTime() +
+  session.duration_min * 60000
+);
 
   await session.save();
 

@@ -96,19 +96,7 @@ const sessionSchema = new Schema<ISession>(
   { timestamps: true },
 );
 
-sessionSchema.index({ therapist_id: 1, scheduled_at: -1, end_at: 1, status: 1 });
-sessionSchema.index({ child_id:      1, scheduled_at: -1, end_at: 1, status: 1 });
-
-// 1. Virtual field setup (adds attendance dynamically to session response)
-sessionSchema.virtual('attendance', {
-  ref: 'Attendance',          // Target model (AttendanceModel)
-  localField: '_id',          // Session ki ID
-  foreignField: 'session_id', // Attendance table mein mapped key
-  justOne: true               // Ek session ka ek hi attendance record hoga
-});
-
-// 2. to send virtual field to response automatically
-sessionSchema.set('toObject', { virtuals: true });
-sessionSchema.set('toJSON', { virtuals: true });
+sessionSchema.index({ therapist_id: 1, scheduled_at: -1 });
+sessionSchema.index({ child_id:     1, scheduled_at: -1 });
 
 export const SessionModel = mongoose.model<ISession>('Session', sessionSchema);

@@ -37,7 +37,7 @@ export async function createChild(input: CreateChildInput, user: AuthPayload) {
   
   // Aligned directly with the new array input schema format
   return ChildModel.create({
-    ...input,
+    ...input, center_id: user.sub,
     dob:            new Date(input.dob),
     consent_record: {
       given_at: new Date(input.consent_record.given_at),

@@ -127,7 +127,9 @@ function getGoogleAuth() {
 
 // google.service.ts - Fixed getCalendarClient with proper TypeScript
 
-export async function getCalendarClient(centerId: string): Promise<CalendarClient> {
+export async function getCalendarClient(
+  centerId: string
+): Promise<CalendarClient> {
   const profile = await CenterProfileModel.findOne({
     user_id: centerId,
   });
@@ -142,7 +144,7 @@ export async function getCalendarClient(centerId: string): Promise<CalendarClien
 
   const refreshToken = decrypt(profile.google_calendar.refresh_token);
   const client = createOAuthClient();
-  
+
   // Set initial credentials
   client.setCredentials({
     refresh_token: refreshToken,
@@ -164,11 +166,15 @@ export async function getCalendarClient(centerId: string): Promise<CalendarClien
         console.log("Access token expired, refreshing...");
       }
     }
-    
+
     const { credentials } = await client.refreshAccessToken();
     client.setCredentials(credentials);
-    
-    // ✅ Store new refresh token if provided
+
+    const info = await client.getTokenInfo(credentials.access_token!);
+
+    console.log(info.scopes);
+
+    //  Store new refresh token if provided
     if (credentials.refresh_token) {
       const encryptedToken = encrypt(credentials.refresh_token);
       await CenterProfileModel.findOneAndUpdate(
@@ -471,6 +477,7 @@ export function getGoogleAuthUrl(centerId: string) {
     prompt: "consent",
     scope: [
       "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/userinfo.profile",
     ],

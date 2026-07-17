@@ -69,21 +69,22 @@ export async function getUpcomingSessions(
 
 export async function getSessionHistory(
   childId: string,
-
   user: AuthPayload
 ) {
   await assertParentAccess(childId, user);
 
-  return SessionModel.find({
+  const now = new Date();
+
+  return SessionModel.findOne({
     child_id: childId,
-
-    status: "completed",
+    status: "scheduled",
+    scheduled_at: {
+      $gte: now,
+    },
   })
-
     .sort({
-      scheduled_at: -1,
+      scheduled_at: 1,
     })
-
     .lean();
 }
 
