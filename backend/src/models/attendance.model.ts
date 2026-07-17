@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAttendance extends Document {
   child_id:   mongoose.Types.ObjectId;
-  session_id: mongoose.Types.ObjectId | null;
+  session_id?: mongoose.Types.ObjectId | null; //made it optional
   date:       Date;
   status:     'present' | 'absent' | 'late';
   marked_by:  mongoose.Types.ObjectId;
