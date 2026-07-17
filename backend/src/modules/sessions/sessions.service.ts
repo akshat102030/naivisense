@@ -16,64 +16,8 @@ import type {
   UpdateSessionInput,
  } from "./sessions.schema";
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
-import { CenterProfileModel } from "../../models/center-profile.model";
 
 
-const BREAK_TIME = 10;
-
-async function checkTherapistAvailability(
-  therapistId: string,
-
-  requestedStart: Date,
-
-  requestedEnd: Date,
-
-  excludeSessionId?: string
-) {
-  const busyStart = new Date(requestedStart.getTime() - BREAK_TIME * 60000);
-
-  const busyEnd = new Date(requestedEnd.getTime() + BREAK_TIME * 60000);
-
-  const conflict = await SessionModel.findOne({
-    therapist_id: therapistId,
-
-    status: "scheduled",
-
-    ...(excludeSessionId && {
-      _id: { $ne: excludeSessionId },
-    }),
-
-    scheduled_at: {
-      $lt: busyEnd,
-    },
-
-    end_at: {
-      $gt: busyStart,
-    },
-  });
-
-  if (!conflict) {
-    return;
-  }
-
-  const beforeTime = new Date(
-    new Date(conflict.scheduled_at).getTime() -
-      BREAK_TIME * 60000 -
-      (requestedEnd.getTime() - requestedStart.getTime())
-  );
-
-  const afterTime = new Date(
-    new Date(conflict.end_at).getTime() + BREAK_TIME * 60000
-  );
-
-  throw new AppError(
-    "CONFLICT",
-
-    `Therapist already has another session.
-Schedule before ${beforeTime.toLocaleTimeString()}
-or after ${afterTime.toLocaleTimeString()}.`
-  );
-}
 
 export async function createSession(
   input: CreateSessionInput,
@@ -100,7 +44,6 @@ export async function createSession(
 
   const endAt = new Date(scheduledAt.getTime() + duration * 60_000);
 
-  await checkTherapistAvailability(user.sub, scheduledAt, endAt);
 
   const session = await SessionModel.create({
     ...input,
