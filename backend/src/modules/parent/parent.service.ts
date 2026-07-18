@@ -19,11 +19,7 @@ async function assertParentAccess(childId: string, user: AuthPayload) {
   return child;
 }
 
-export async function showProgress(
-  childId: string,
-
-  user: AuthPayload
-) {
+export async function showProgress(childId: string, user: AuthPayload) {
   await assertParentAccess(childId, user);
 
   const assessment = await AssessmentModel.findOne({
@@ -36,41 +32,29 @@ export async function showProgress(
 
   return {
     previous: assessment.previous ?? null,
-
     latest: assessment.latest ?? null,
   };
 }
 
-export async function getUpcomingSessions(
-  childId: string,
-
-  user: AuthPayload
-) {
+export async function getUpcomingSessions(childId: string, user: AuthPayload) {
   await assertParentAccess(childId, user);
 
   const now = new Date();
 
   return SessionModel.find({
     child_id: childId,
-
     scheduled_at: {
       $gte: now,
     },
-
     status: "scheduled",
   })
-
     .sort({
       scheduled_at: 1,
     })
-
     .lean();
 }
 
-export async function getSessionHistory(
-  childId: string,
-  user: AuthPayload
-) {
+export async function getSessionHistory(childId: string, user: AuthPayload) {
   await assertParentAccess(childId, user);
 
   const now = new Date();
@@ -82,59 +66,40 @@ export async function getSessionHistory(
       $gte: now,
     },
   })
-    .sort({
-      scheduled_at: 1,
+    .sort({ scheduled_at: 1 })
+    .populate({
+      path: "child_id",
+      select: "therapists",
     })
     .lean();
 }
 
-export async function getSessionNotes(
-  sessionId: string,
-
-  user: AuthPayload
-) {
+export async function getSessionNotes(sessionId: string, user: AuthPayload) {
   const session = await SessionModel.findById(sessionId).lean();
 
   if (!session) {
     throw new AppError("NOT_FOUND", "Session not found");
   }
 
-  await assertParentAccess(
-    session.child_id.toString(),
-
-    user
-  );
+  await assertParentAccess(session.child_id.toString(), user);
 
   return {
     session_id: session._id,
-
     scheduled_at: session.scheduled_at,
-
     therapist_id: session.therapist_id,
-
     notes: session.notes ?? null,
   };
 }
 
-export async function getHomework(
-  childId: string,
-
-  user: AuthPayload
-) {
-  await assertParentAccess(
-    childId,
-
-    user
-  );
+export async function getHomework(childId: string, user: AuthPayload) {
+  await assertParentAccess(childId, user);
 
   return HomeTaskLogModel.find({
     child_id: childId,
   })
-
     .sort({
       logged_at: -1,
     })
-
     .lean();
 }
 
@@ -147,7 +112,7 @@ export async function getDashboard(user: AuthPayload) {
     throw new AppError(
       "NOT_FOUND",
 
-      "Child not found"
+      "Child not found",
     );
   }
 
@@ -157,9 +122,7 @@ export async function getDashboard(user: AuthPayload) {
 
   const upcomingSessions = await SessionModel.countDocuments({
     child_id: child._id,
-
     status: "scheduled",
-
     scheduled_at: {
       $gte: new Date(),
     },
@@ -167,35 +130,27 @@ export async function getDashboard(user: AuthPayload) {
 
   const completedSessions = await SessionModel.countDocuments({
     child_id: child._id,
-
     status: "completed",
   });
 
   const homeworkPending = await HomeTaskLogModel.countDocuments({
     child_id: child._id,
-
     status: "pending",
   });
 
   return {
     child: {
       id: child._id,
-
       name: child.name,
     },
-
     assessment: {
       previous: assessment?.previous ?? null,
-
       latest: assessment?.latest ?? null,
     },
-
     sessions: {
       upcoming: upcomingSessions,
-
       completed: completedSessions,
     },
-
     homework: {
       pending: homeworkPending,
     },

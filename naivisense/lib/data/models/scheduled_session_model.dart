@@ -1,6 +1,6 @@
 class ScheduledSessionModel {
   final String therapyType;
-  final List<String> days;
+  final List<int> days;
   final String fromTime;
   final String toTime;
 
@@ -13,14 +13,27 @@ class ScheduledSessionModel {
 
   factory ScheduledSessionModel.fromJson(Map<String, dynamic> json) {
     return ScheduledSessionModel(
-      therapyType: json['therapy_type'] ?? '',
-      days: List<String>.from(json['days'] ?? const []),
-      fromTime: json['from_time'] ?? '',
-      toTime: json['to_time'] ?? '',
+      therapyType: json['therapyType'] ?? '',
+      days: (json['days'] as List<dynamic>? ?? [])
+          .map((e) => e as int)
+          .toList(),
+      fromTime: json['fromTime'] ?? '',
+      toTime: json['toTime'] ?? '',
     );
   }
 
-  String get daysLabel => days.join(', ');
+  static const List<String> _weekDays = [
+    '',
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+
+  String get daysLabel => days.map((d) => _weekDays[d]).join(', ');
 
   String get timeLabel => '$fromTime - $toTime';
 }

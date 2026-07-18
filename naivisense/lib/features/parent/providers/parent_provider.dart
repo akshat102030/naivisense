@@ -51,7 +51,7 @@ final parentUpcomingSessionsProvider =
     });
 
 final parentScheduledSessionProvider =
-    FutureProvider.family<ScheduledSessionModel?, String>((ref, childId) {
+    FutureProvider.family<List<ScheduledSessionModel>, String>((ref, childId) {
       return ref
           .read(sessionsRepositoryProvider)
           .getScheduledSession(childId: childId);

@@ -122,7 +122,7 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen> {
     WidgetRef ref,
     AsyncValue<List<SessionModel>> sessions,
     AsyncValue<List<SessionModel>> upcomingSessions,
-    AsyncValue<ScheduledSessionModel?> scheduledSession,
+    AsyncValue<List<ScheduledSessionModel>> scheduledSession,
     AsyncValue<HomePlanModel?> plan,
     AsyncValue<DietPlanModel?> dietPlan,
     AsyncValue<List<AlertModel>> alerts,

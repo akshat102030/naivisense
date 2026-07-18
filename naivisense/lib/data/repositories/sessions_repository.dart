@@ -116,15 +116,18 @@ class SessionsRepository {
     }
   }
 
-  Future<ScheduledSessionModel?> getScheduledSession({
+  Future<List<ScheduledSessionModel>> getScheduledSession({
     required String childId,
   }) async {
     try {
-      final res = await _api.get('/parent/child/$childId/sessions/schedule'); // Change here
+      final res = await _api.get('/parent/child/$childId/sessions/history');
 
-      if (res.data == null) return null;
+      if (res.data == null) return [];
+      print('SessionsRepository.getScheduledSession: ${res.data}');
 
-      return ScheduledSessionModel.fromJson(res.data as Map<String, dynamic>);
+      return (res.data as List)
+          .map((e) => ScheduledSessionModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw ErrorHandlerService.handle(e);
     }

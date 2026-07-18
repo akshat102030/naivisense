@@ -9,7 +9,7 @@ import 'package:naivisense/shared/widgets/app_card.dart';
 import 'package:naivisense/shared/widgets/state_widgets.dart' as sw;
 
 class ScheduledSessions extends StatelessWidget {
-  final AsyncValue<ScheduledSessionModel?> scheduledSession;
+  final AsyncValue<List<ScheduledSessionModel>> scheduledSession;
 
   const ScheduledSessions({super.key, required this.scheduledSession});
 
@@ -24,7 +24,6 @@ class ScheduledSessions extends StatelessWidget {
           title: "Scheduled Sessions",
           icon: Icons.calendar_month_outlined,
         ),
-
         r.gapH(12, tablet: 16, desktop: 20),
 
         scheduledSession.when(
@@ -36,19 +35,29 @@ class ScheduledSessions extends StatelessWidget {
           ),
 
           error: (_, __) => const sw.EmptyWidget(
-            message: "Unable to load scheduled session",
+            message: "Unable to load scheduled sessions",
             icon: Icons.error_outline,
           ),
 
-          data: (session) {
-            if (session == null) {
+          data: (sessions) {
+            if (sessions.isEmpty) {
               return const sw.EmptyWidget(
                 message: "No recurring schedule set",
                 icon: Icons.calendar_month_outlined,
               );
             }
 
-            return _ScheduleCard(session: session);
+            return Column(
+              children: List.generate(
+                sessions.length,
+                (index) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == sessions.length - 1 ? 0 : r.h(12),
+                  ),
+                  child: _ScheduleCard(session: sessions[index]),
+                ),
+              ),
+            );
           },
         ),
       ],
@@ -60,6 +69,25 @@ class _ScheduleCard extends StatelessWidget {
   final ScheduledSessionModel session;
 
   const _ScheduleCard({required this.session});
+
+  static const List<String> _weekDays = [
+    '',
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+
+  String get daysLabel {
+    return session.days
+        .map((e) => (e >= 1 && e <= 7) ? _weekDays[e] : e.toString())
+        .join(', ');
+  }
+
+  String get timeLabel => '${session.fromTime} - ${session.toTime}';
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +134,11 @@ class _ScheduleCard extends StatelessWidget {
                         children: [
                           _ScheduleInfoChip(
                             icon: Icons.schedule_outlined,
-                            text: session.timeLabel,
+                            text: timeLabel,
                           ),
                           _ScheduleInfoChip(
                             icon: Icons.calendar_today_outlined,
-                            text: session.daysLabel,
+                            text: daysLabel,
                           ),
                         ],
                       ),
@@ -137,11 +165,11 @@ class _ScheduleCard extends StatelessWidget {
                         children: [
                           _ScheduleInfoChip(
                             icon: Icons.schedule_outlined,
-                            text: session.timeLabel,
+                            text: timeLabel,
                           ),
                           _ScheduleInfoChip(
                             icon: Icons.calendar_today_outlined,
-                            text: session.daysLabel,
+                            text: daysLabel,
                           ),
                         ],
                       ),
