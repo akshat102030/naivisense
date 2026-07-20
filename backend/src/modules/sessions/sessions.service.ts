@@ -16,7 +16,7 @@ import type {
   UpdateSessionInput,
  } from "./sessions.schema";
 import { sendSessionRescheduledMailToParent } from "../mail/mail.service";
-
+import { AttendanceModel } from "../../models/attendance.model";
 
 
 export async function createSession(
@@ -235,9 +235,10 @@ export async function submitNotes(
 
   return session;
 }
-
+// return upcoming sessions with attendance (Changed)
 export async function getUpcomingSessions(user: AuthPayload) {
   const now = new Date();
+
   const filter =
     user.role === "therapist"
       ? {
@@ -245,9 +246,30 @@ export async function getUpcomingSessions(user: AuthPayload) {
           scheduled_at: { $gte: now },
           status: "scheduled",
         }
-      : { scheduled_at: { $gte: now }, status: "scheduled" };
+      : {
+          scheduled_at: { $gte: now },
+          status: "scheduled",
+        };
 
-  return SessionModel.find(filter).sort({ scheduled_at: 1 }).limit(20).lean();
+  const sessions = await SessionModel.find(filter)
+    .sort({ scheduled_at: 1 })
+    .limit(20)
+    .lean();
+
+  const sessionsWithAttendance = await Promise.all(
+    sessions.map(async (session) => {
+      const attendance = await AttendanceModel.findOne({
+        session_id: session._id,
+      }).lean();
+
+      return {
+        ...session,
+        hasPendingAttendance: !attendance,
+      };
+    })
+  );
+
+  return sessionsWithAttendance;
 }
 
 export async function listSessions(childId: string, user: AuthPayload) {
