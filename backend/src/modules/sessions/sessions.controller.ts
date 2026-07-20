@@ -43,6 +43,10 @@ export const upcoming = asyncHandler(async (req: any, res: any): Promise<void> =
   const sessions = await SessionService.getUpcomingSessions(req.user!);
   res.json(sessions);
 });
+export const pendingAttendance = asyncHandler(async (req: any, res: any): Promise<void> => {
+  const sessions = await SessionService.getPendingAttendanceSessions(req.user!);
+  res.json(sessions);
+});
 
 //  attendance check list API
 export const list = asyncHandler(async (req: any, res: any): Promise<void> => {
