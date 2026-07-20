@@ -243,11 +243,11 @@ export async function getUpcomingSessions(user: AuthPayload) {
     user.role === "therapist"
       ? {
           therapist_id: user.sub,
-          scheduled_at: { $gte: now },
+          end_at: { $gte: now },
           status: "scheduled",
         }
       : {
-          scheduled_at: { $gte: now },
+          end_at: { $gte: now },
           status: "scheduled",
         };
 
@@ -309,12 +309,50 @@ export async function getNextSession(childId: string, user: AuthPayload) {
   const now = new Date();
   const next = await SessionModel.findOne({
     child_id: childId,
-    scheduled_at: { $gte: now },
+    end_at: { $gte: now },
     status: "scheduled",
   })
     .sort({ scheduled_at: 1 })
     .lean();
 
   return next ?? null;
+}
+
+export async function getPendingAttendanceSessions(user: AuthPayload) {
+  const now = new Date();
+
+  const filter =
+    user.role === "therapist"
+      ? {
+          therapist_id: user.sub,
+          end_at: { $lt: now },
+          status: "scheduled",
+        }
+      : {
+          end_at: { $lt: now },
+          status: "scheduled",
+        };
+
+  const sessions = await SessionModel.find(filter)
+    .sort({ scheduled_at: -1 })
+    .limit(20)
+    .lean();
+
+ const sessionsWithAttendance = await Promise.all(
+  sessions.map(async (session) => {
+    const attendance = await AttendanceModel.findOne({
+      session_id: session._id,
+    }).lean();
+
+    return {
+      ...session,
+      hasPendingAttendance: !attendance,
+    };
+  })
+);
+
+return sessionsWithAttendance.filter(
+  (session) => session.hasPendingAttendance
+);
 }
 
