@@ -34,23 +34,35 @@ export async function parentCheckIn(input: ParentCheckInInput, user: AuthPayload
     throw new AppError('FORBIDDEN', 'Only parents can trigger check-in for kids');
   }
 
-  //  FIX: Agar session_id bheja hai, tabhi database validation check chalega
-  if (input.session_id) {
-    const session = await SessionModel.findById(input.session_id).lean();
-    if (!session) {
-      throw new AppError('NOT_FOUND', 'Session not found for attendance validation');
-    }
+  // Session ID is now mandatory
+const session = await SessionModel.findById(input.session_id).lean();
 
-    // Prevent duplicate attendance entries ONLY if session_id exists
-    const existingAttendance = await AttendanceModel.findOne({
-      child_id: input.child_id,
-      session_id: input.session_id
-    });
+if (!session) {
+  throw new AppError(
+    "NOT_FOUND",
+    "Session not found."
+  );
+}
 
-    if (existingAttendance) {
-      throw new AppError('BAD_REQUEST', 'Attendance is already registered for this session');
-    }
-  }
+// Ensure the session belongs to this child
+if (String(session.child_id) !== input.child_id) {
+  throw new AppError(
+    "BAD_REQUEST",
+    "Session does not belong to this child."
+  );
+}
+
+// Prevent duplicate attendance
+const existingAttendance = await AttendanceModel.findOne({
+  session_id: input.session_id,
+}).lean();
+
+if (existingAttendance) {
+  throw new AppError(
+    "BAD_REQUEST",
+    "Attendance has already been marked for this session."
+  );
+}
 
   // Calculate geofence distance
   // Fetch center profile
@@ -98,7 +110,7 @@ const source = isWithinGeofence ? "geo" : "manual_override";
   try {
   return await AttendanceModel.create({
     child_id: input.child_id,
-    session_id: input.session_id ?? null,
+    session_id: input.session_id,
     date: new Date(input.date),
     status: "present",
     source,

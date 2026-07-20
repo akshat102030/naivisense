@@ -3,7 +3,7 @@ import { z } from 'zod';
 // 1. Schema for Parent Check-In
 export const ParentCheckInSchema = z.object({
   child_id:   z.string().length(24),
-  session_id: z.string().length(24).optional(),
+  session_id: z.string().length(24), //required now becoz frontend sends it with the session
   date:       z.string(), //removed datetime
   
   status:     z.enum([ 'present', 'absent','late']).optional(),
