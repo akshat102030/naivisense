@@ -272,6 +272,45 @@ export async function getUpcomingSessions(user: AuthPayload) {
   return sessionsWithAttendance;
 }
 
+//to show todays session in therapist dashboard
+export async function getTodaySessions(user: AuthPayload) {
+  if (user.role !== "therapist") {
+    throw new AppError("FORBIDDEN", "Only therapists can view today's sessions");
+  }
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  const sessions = await SessionModel.find({
+    therapist_id: user.sub,
+    scheduled_at: {
+      $gte: startOfToday,
+      $lt: startOfTomorrow,
+    },
+    status: "scheduled",
+  })
+    .sort({ scheduled_at: 1 })
+    .lean();
+
+  const sessionsWithAttendance = await Promise.all(
+    sessions.map(async (session) => {
+      const attendance = await AttendanceModel.findOne({
+        session_id: session._id,
+      }).lean();
+
+      return {
+        ...session,
+        hasPendingAttendance: !attendance,
+      };
+    })
+  );
+
+  return sessionsWithAttendance;
+}
+
 export async function listSessions(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
   if (!child) throw new AppError("NOT_FOUND", "Child not found");

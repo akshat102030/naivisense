@@ -10,6 +10,7 @@ router.use(requireAuth);
 
 router.post('/',              requireRole('therapist'), Ctrl.create);
 router.get('/upcoming',       Ctrl.upcoming);
+router.get("/today", Ctrl.today);
 router.get('/next',           Ctrl.nextSession);
 router.get('/',               Ctrl.list);
 router.get('/pending-attendance', Ctrl.pendingAttendance);

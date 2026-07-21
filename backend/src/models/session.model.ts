@@ -82,6 +82,7 @@ const sessionSchema = new Schema<ISession>(
     child_id:     { type: Schema.Types.ObjectId, ref: 'Child', required: true },
     therapist_id: { type: Schema.Types.ObjectId, ref: 'User',  required: true },
     scheduled_at: { type: Date, required: true },
+    end_at: { type: Date, required: true },
     type:         { type: String, enum: ['speech', 'ot', 'behavior', 'special_ed'], required: true },
     mode:         { type: String, enum: ['online', 'offline'], default: 'offline' },
     duration_min: { type: Number, default: 45 },
