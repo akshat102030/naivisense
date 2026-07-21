@@ -4,6 +4,7 @@ import { HomeTaskLogModel } from "../../models/home-task-log.model";
 import { ChildModel } from "../../models/child.model";
 import { AppError } from "../../middleware/error";
 import type { AuthPayload } from "../../middleware/auth";
+import { AttendanceModel } from "../../models/attendance.model";
 
 async function assertParentAccess(childId: string, user: AuthPayload) {
   const child = await ChildModel.findById(childId).lean();
@@ -35,23 +36,71 @@ export async function showProgress(childId: string, user: AuthPayload) {
     latest: assessment.latest ?? null,
   };
 }
-
-export async function getUpcomingSessions(childId: string, user: AuthPayload) {
+//new : getupcomingsessions in parent
+export async function getUpcomingSessions(
+  childId: string,
+  user: AuthPayload
+) {
   await assertParentAccess(childId, user);
 
   const now = new Date();
 
-  return SessionModel.find({
+  const sessions = await SessionModel.find({
     child_id: childId,
-    scheduled_at: {
-      $gte: now,
-    },
+    end_at: { $gte: now },
     status: "scheduled",
   })
-    .sort({
-      scheduled_at: 1,
-    })
+    .sort({ scheduled_at: 1 })
     .lean();
+
+  const sessionsWithAttendance = await Promise.all(
+    sessions.map(async (session) => {
+      const attendance = await AttendanceModel.findOne({
+        session_id: session._id,
+      }).lean();
+
+      return {
+        ...session,
+        hasPendingAttendance: !attendance,
+      };
+    })
+  );
+
+  return sessionsWithAttendance;
+}
+//new pendingAttendance function
+export async function getPendingAttendanceSessions(
+  childId: string,
+  user: AuthPayload
+) {
+  await assertParentAccess(childId, user);
+
+  const now = new Date();
+
+  const sessions = await SessionModel.find({
+    child_id: childId,
+    end_at: { $lt: now },
+    status: "scheduled",
+  })
+    .sort({ scheduled_at: -1 })
+    .lean();
+
+  const sessionsWithAttendance = await Promise.all(
+    sessions.map(async (session) => {
+      const attendance = await AttendanceModel.findOne({
+        session_id: session._id,
+      }).lean();
+
+      return {
+        ...session,
+        hasPendingAttendance: !attendance,
+      };
+    })
+  );
+
+  return sessionsWithAttendance.filter(
+    (session) => session.hasPendingAttendance
+  );
 }
 
 export async function getSessionHistory(childId: string, user: AuthPayload) {

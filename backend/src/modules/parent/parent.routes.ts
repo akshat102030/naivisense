@@ -18,6 +18,11 @@ router.get(
   ParentController.upcomingSessions
 );
 
+router.get(
+  "/child/:childId/sessions/pending-attendance",
+  ParentController.pendingAttendance
+);
+
 router.get("/child/:childId/sessions/history", ParentController.sessionHistory);
 
 router.get("/session/:sessionId/notes", ParentController.sessionNotes);

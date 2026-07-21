@@ -20,6 +20,15 @@ export const upcomingSessions = asyncHandler(async (req, res) => {
 
   res.json(data);
 });
+//new pendingAttendance function
+export const pendingAttendance = asyncHandler(async (req, res) => {
+  const data = await ParentService.getPendingAttendanceSessions(
+    req.params.childId,
+    req.user!
+  );
+
+  res.json(data);
+});
 
 export const sessionHistory = asyncHandler(async (req, res) => {
 
