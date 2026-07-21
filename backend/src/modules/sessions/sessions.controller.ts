@@ -43,6 +43,11 @@ export const upcoming = asyncHandler(async (req: any, res: any): Promise<void> =
   const sessions = await SessionService.getUpcomingSessions(req.user!);
   res.json(sessions);
 });
+//for todays sessions
+export const today = asyncHandler(async (req: any, res: any): Promise<void> => {
+  const sessions = await SessionService.getTodaySessions(req.user!);
+  res.json(sessions);
+});
 export const pendingAttendance = asyncHandler(async (req: any, res: any): Promise<void> => {
   const sessions = await SessionService.getPendingAttendanceSessions(req.user!);
   res.json(sessions);
