@@ -1,24 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:naivisense/data/models/session.dart';
 import 'package:naivisense/data/services/location_service.dart';
 
 import '../../../data/models/child.dart';
 import '../../../data/repositories/attendance_repository.dart';
 
 class AttendanceState {
-  final bool loading;
+  final String? loadingSessionId;
   final bool success;
   final String? error;
 
   const AttendanceState({
-    this.loading = false,
+    this.loadingSessionId,
     this.success = false,
     this.error,
   });
 
-  AttendanceState copyWith({bool? loading, bool? success, String? error}) {
+  bool isLoading(String sessionId) => loadingSessionId == sessionId;
+
+  AttendanceState copyWith({
+    String? loadingSessionId,
+    bool? success,
+    String? error,
+  }) {
     return AttendanceState(
-      loading: loading ?? this.loading,
+      loadingSessionId: loadingSessionId,
       success: success ?? this.success,
       error: error,
     );
@@ -35,34 +42,36 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     return const AttendanceState();
   }
 
-  Future<void> markAttendanceForChild(ChildModel child) async {
+  Future<void> markAttendanceForChild(
+    ChildModel child,
+    SessionModel session,
+  ) async {
     if (_isSubmitting) return;
 
-    if (_lastMarkedAt != null &&
-        DateTime.now().difference(_lastMarkedAt!).inMinutes < 5) {
-      return;
-    }
-
-    final ok = await markAttendance(child.id);
+    final ok = await markAttendance(child.id, session.id);
 
     if (ok) {
       _lastMarkedAt = DateTime.now();
     }
   }
 
-  Future<bool> markAttendance(String childId) async {
+  Future<bool> markAttendance(String childId, String sessionId) async {
     if (_isSubmitting) return false;
 
     _isSubmitting = true;
 
-    state = state.copyWith(loading: true, success: false, error: null);
+    state = state.copyWith(
+      loadingSessionId: sessionId,
+      success: false,
+      error: null,
+    );
 
     try {
       final position = await LocationService.getCurrentLocation();
 
       if (position == null) {
         state = state.copyWith(
-          loading: false,
+          loadingSessionId: null,
           success: false,
           error: 'Unable to get current location.',
         );
@@ -75,12 +84,17 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
           .read(attendanceRepositoryProvider)
           .markAttendance(
             childId: childId,
+            sessionId: sessionId,
             date: DateTime.now(),
             latitude: position.latitude,
             longitude: position.longitude,
           );
 
-      state = state.copyWith(loading: false, success: true);
+      state = state.copyWith(
+        loadingSessionId: null,
+        success: true,
+        error: null,
+      );
 
       _isSubmitting = false;
       return true;
@@ -88,7 +102,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       debugPrint("Attendance Error: $e");
 
       state = state.copyWith(
-        loading: false,
+        loadingSessionId: null,
         success: false,
         error: e.toString(),
       );

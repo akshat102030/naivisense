@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:naivisense/core/utils/responsive.dart';
 import 'package:naivisense/data/models/scheduled_session_model.dart';
-import 'package:naivisense/features/parent/providers/attendance_provider.dart';
 import 'package:naivisense/features/parent/widget/accepted_goals_section.dart';
 import 'package:naivisense/features/parent/widget/child_detail_app_bar.dart';
 import 'package:naivisense/features/parent/widget/diet_plan_section.dart';
@@ -28,7 +27,6 @@ import '../providers/parent_provider.dart';
 
 class ChildDetailScreen extends ConsumerStatefulWidget {
   final ChildModel child;
-
   const ChildDetailScreen({super.key, required this.child});
 
   @override
@@ -37,23 +35,15 @@ class ChildDetailScreen extends ConsumerStatefulWidget {
 
 class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen> {
   @override
-  void initState() {
-    super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(attendanceProvider.notifier)
-          .markAttendanceForChild(widget.child);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final r = Responsive(context);
 
     final sessions = ref.watch(parentSessionsProvider(widget.child.id));
     final upcomingSessions = ref.watch(
       parentUpcomingSessionsProvider(widget.child.id),
+    );
+    final pendingAttendance = ref.watch(
+      parentPendingAttendanceProvider(widget.child.id),
     );
     final scheduledSession = ref.watch(
       parentScheduledSessionProvider(widget.child.id),
@@ -71,6 +61,7 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(parentSessionsProvider(widget.child.id));
+          ref.invalidate(parentPendingAttendanceProvider(widget.child.id));
           ref.invalidate(parentUpcomingSessionsProvider(widget.child.id));
           ref.invalidate(parentScheduledSessionProvider(widget.child.id));
           ref.invalidate(parentActivePlanProvider(widget.child.id));
@@ -98,6 +89,7 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen> {
                       context,
                       ref,
                       sessions,
+                      pendingAttendance,
                       upcomingSessions,
                       scheduledSession,
                       plan,
@@ -121,6 +113,7 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen> {
     BuildContext context,
     WidgetRef ref,
     AsyncValue<List<SessionModel>> sessions,
+    AsyncValue<List<SessionModel>> pendingAttendance,
     AsyncValue<List<SessionModel>> upcomingSessions,
     AsyncValue<List<ScheduledSessionModel>> scheduledSession,
     AsyncValue<HomePlanModel?> plan,
@@ -143,7 +136,20 @@ class _ChildDetailScreenState extends ConsumerState<ChildDetailScreen> {
 
         SizedBox(height: r.sectionSpacing),
 
-        NextSessionSection(upcomingSessions: upcomingSessions),
+        NextSessionSection(
+          title: "Pending Attendance",
+          child: widget.child,
+          sessions: pendingAttendance,
+        ),
+
+        SizedBox(height: r.sectionSpacing),
+
+        NextSessionSection(
+          title: "Upcoming Sessions",
+          child: widget.child,
+          showOnlyFirstPendingAttendance: true,
+          sessions: upcomingSessions,
+        ),
 
         SizedBox(height: r.sectionSpacing),
 

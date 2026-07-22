@@ -43,6 +43,13 @@ final parentSessionsProvider =
           ref.read(sessionsRepositoryProvider).getSessions(childId: childId),
     );
 
+final parentPendingAttendanceProvider =
+    FutureProvider.family<List<SessionModel>, String>((ref, childId) {
+      return ref
+          .read(sessionsRepositoryProvider)
+          .getPendingAttendanceSessions(childId: childId);
+    });
+
 final parentUpcomingSessionsProvider =
     FutureProvider.family<List<SessionModel>, String>((ref, childId) {
       return ref

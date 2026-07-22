@@ -1,12 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:naivisense/data/repositories/attendance_repository.dart';
-import 'package:naivisense/features/parent/providers/attendance_provider.dart';
-import 'package:naivisense/features/parent/providers/parent_provider.dart';
+import 'package:naivisense/providers/socket_event_provider.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../data/models/api/auth_requests.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/auth_repository.dart';
-import '../../../data/services/storage_service.dart';
+import '../../../providers/socket_provider.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -49,44 +48,50 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   Future<void> login(String phone, String password) async {
-    state = const AsyncValue.loading();
+    state = const AsyncLoading();
 
     try {
       final auth = await ref
           .read(authRepositoryProvider)
           .login(LoginRequest(phone: phone, password: password));
 
-      // Login successful
-      state = AsyncValue.data(
+      // Connect socket
+      await ref
+          .read(socketServiceProvider)
+          .connect(
+            baseUrl: AppConstants.socketUrl,
+            token: auth.accessToken,
+            userId: auth.user.id,
+          );
+
+      // Register all socket listeners after connection
+      ref.read(socketEventHandlerProvider).initialize();
+
+      state = AsyncData(
         AuthState(
           status: AuthStatus.authenticated,
           user: auth.user,
           token: auth.accessToken,
         ),
       );
-
-      // if (auth.user.role == 'parent') {
-      //   final children = await ref.read(parentChildrenProvider.future);
-
-      //   for (final child in children) {
-      //     await ref
-      //         .read(attendanceProvider.notifier)
-      //         .markAttendanceForChild(child);
-      //   }
-      // }
     } catch (e) {
-      state = AsyncValue.data(
+      state = AsyncData(
         AuthState(status: AuthStatus.unauthenticated, error: e.toString()),
       );
     }
   }
 
   Future<void> logout() async {
+    // Remove socket listeners
+    ref.read(socketEventHandlerProvider).dispose();
+
+    // Disconnect socket
+    ref.read(socketServiceProvider).disconnect();
+
+    // Logout from backend
     await ref.read(authRepositoryProvider).logout();
 
-    state = const AsyncValue.data(
-      AuthState(status: AuthStatus.unauthenticated),
-    );
+    state = const AsyncData(AuthState(status: AuthStatus.unauthenticated));
   }
 }
 

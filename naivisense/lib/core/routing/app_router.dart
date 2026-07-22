@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:naivisense/features/admin/screens/adminhomescreen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/therapist/screens/therapist_home_screen.dart';
@@ -41,6 +42,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           'lead_therapist' => '/lead-therapist',
           'dietician' => '/dietician',
           'clinical_psychologist' => '/clinical-psychologist',
+          'admin' => '/admin',
           _ => '/login',
         };
       }
@@ -48,6 +50,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (ctx, _) => const LoginScreen()),
+      GoRoute(path: '/admin', builder: (ctx, _) => const AdminHomeScreen()),
       GoRoute(
         path: '/therapist',
         builder: (ctx, _) => const TherapistHomeScreen(),

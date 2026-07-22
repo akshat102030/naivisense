@@ -71,19 +71,18 @@ class _ScheduleCard extends StatelessWidget {
   const _ScheduleCard({required this.session});
 
   static const List<String> _weekDays = [
-    '',
+    'Sun',
     'Mon',
     'Tue',
     'Wed',
     'Thu',
     'Fri',
     'Sat',
-    'Sun',
   ];
 
   String get daysLabel {
     return session.days
-        .map((e) => (e >= 1 && e <= 7) ? _weekDays[e] : e.toString())
+        .map((e) => (e >= 0 && e < 7) ? _weekDays[e] : e.toString())
         .join(', ');
   }
 

@@ -31,6 +31,7 @@ class AttendanceRepository {
 
   Future<AttendanceRecord> markAttendance({
     required String childId,
+    required String sessionId,
     required DateTime date,
     required double latitude,
     required double longitude,
@@ -38,6 +39,7 @@ class AttendanceRepository {
     try {
       final payload = {
         'child_id': childId,
+        'session_id': sessionId,
         'date': date.toUtc().toIso8601String(),
         'location': {'lat': latitude, 'lng': longitude},
       };

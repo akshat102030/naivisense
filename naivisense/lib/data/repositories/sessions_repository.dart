@@ -88,6 +88,24 @@ class SessionsRepository {
     }
   }
 
+  Future<List<SessionModel>> getPendingAttendanceSessions({
+    required String childId,
+  }) async {
+    try {
+      final res = await _api.get(
+        '/parent/child/$childId/sessions/pending-attendance', //  Change this.
+      );
+
+      final list = res.data as List<dynamic>;
+
+      return list
+          .map((e) => SessionModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw ErrorHandlerService.handle(e);
+    }
+  }
+
   Future<SessionModel?> getNextSession({required String childId}) async {
     try {
       final res = await _api.get(
@@ -108,6 +126,7 @@ class SessionsRepository {
     try {
       final res = await _api.get('/parent/child/$childId/sessions/upcoming');
       final list = res.data as List<dynamic>;
+      print('SessionsRepository.getUpcomingSessions: ${res.data}');
       return list
           .map((e) => SessionModel.fromJson(e as Map<String, dynamic>))
           .toList();
